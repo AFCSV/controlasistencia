@@ -1,0 +1,1696 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AFCSV · Asistencia</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+:root {
+  --r:#C9A84C; --r2:#8B6914; --rg:rgba(201,168,76,.3);
+  --d:#F0C040; --d2:#C9A030; --dg:rgba(240,192,64,.25);
+  --n:#000000; --g1:#0A0A0A; --g2:#111111; --g3:#1A1A1A; --g4:#222222; --g5:#333333;
+  --w:#FFFFFF; --w2:rgba(255,255,255,.65); --w3:rgba(255,255,255,.35);
+  --ok:#22C55E; --info:#3B82F6; --warn:#F59E0B; --lila:#A78BFA;
+  --bd:rgba(240,192,64,.12);--ra:16px;--rb:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{height:100%}
+body{font-family:'DM Sans',sans-serif;background:var(--n);color:var(--w);
+  min-height:100vh;font-size:14px;overflow-x:hidden}
+input,select,button,textarea{font-family:'DM Sans',sans-serif;font-size:14px}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:var(--g5);border-radius:3px}
+
+/* ── BACKGROUND ── */
+body::before{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse 70% 45% at 10% 0%,rgba(201,168,76,.1) 0%,transparent 55%),
+             radial-gradient(ellipse 50% 35% at 90% 100%,rgba(201,168,76,.07) 0%,transparent 55%);
+  pointer-events:none;z-index:0}
+
+/* ── LAYOUT ── */
+.page{position:relative;z-index:1;max-width:480px;margin:0 auto;padding:16px 16px 40px}
+
+/* ── HEADER ── */
+.header{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 16px;background:var(--g1);border-bottom:1px solid var(--bd);
+  position:sticky;top:0;z-index:50;margin:-16px -16px 20px}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-ico{width:30px;height:30px;background:linear-gradient(135deg,#C9A84C,#8B6914);
+  border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.logo-txt{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:2px;
+  background:linear-gradient(90deg,#F0C040,#FFFFFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-sub{font-size:10px;color:var(--w3);letter-spacing:.5px;text-align:right}
+
+/* ── TABS ── */
+.tabs{display:flex;background:var(--g2);border-radius:var(--rb);padding:3px;gap:3px;margin-bottom:20px}
+.tab{flex:1;padding:9px 6px;border:none;background:transparent;color:var(--w3);
+  font-weight:600;font-size:12px;border-radius:9px;cursor:pointer;transition:all .22s;letter-spacing:.3px}
+.tab.on{background:linear-gradient(135deg,#C9A84C,#8B6914);color:#000;font-weight:800;box-shadow:0 3px 12px rgba(201,168,76,.35)}
+
+/* ── CARDS ── */
+.card{background:var(--g2);border:1px solid var(--bd);border-radius:var(--ra);padding:18px;margin-bottom:14px}
+.card-t{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
+  color:var(--w3);margin-bottom:14px}
+
+/* ── FIELDS ── */
+.f{margin-bottom:12px}
+.f label{display:block;font-size:10px;font-weight:700;letter-spacing:.8px;
+  text-transform:uppercase;color:var(--w3);margin-bottom:5px}
+.f input,.f select,.f textarea{width:100%;padding:11px 14px;background:var(--g3);
+  border:1px solid var(--bd);border-radius:var(--rb);color:var(--w);
+  outline:none;transition:border-color .2s;appearance:none}
+.f input:focus,.f select:focus{border-color:rgba(245,166,35,.45);background:var(--g4)}
+.f select option{background:var(--g3)}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ── BUTTONS ── */
+.btn{display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:13px;border:none;border-radius:var(--rb);
+  font-weight:700;cursor:pointer;transition:all .22s;margin-bottom:8px;font-size:14px}
+.btn-r{background:linear-gradient(135deg,#C9A84C,#8B6914);color:#000;font-weight:800;box-shadow:0 4px 16px rgba(201,168,76,.35)}
+.btn-d{background:linear-gradient(135deg,#F0C040,#C9A030);color:#000;font-weight:800}
+.btn-g{background:var(--g3);color:var(--w2);border:1px solid var(--bd)}
+.btn-ok{background:linear-gradient(135deg,#16A34A,#15803D);color:#fff}
+.btn-info{background:linear-gradient(135deg,var(--info),#1D4ED8);color:#fff}
+.btn-sm{padding:8px 14px;font-size:12px;width:auto;margin-bottom:0;border-radius:9px}
+.btn:hover:not(:disabled){filter:brightness(1.08);transform:translateY(-1px)}
+.btn:active:not(:disabled){transform:translateY(0)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+/* ── BADGES ── */
+.b{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;
+  padding:3px 8px;border-radius:20px;white-space:nowrap}
+.b-ok{background:rgba(22,163,74,.14);color:#4ADE80;border:1px solid rgba(22,163,74,.2)}
+.b-warn{background:rgba(245,166,35,.14);color:var(--d);border:1px solid rgba(245,166,35,.2)}
+.b-err{background:rgba(200,16,46,.14);color:#FF8099;border:1px solid rgba(200,16,46,.2)}
+.b-info{background:rgba(37,99,235,.14);color:#60A5FA;border:1px solid rgba(37,99,235,.2)}
+.b-gray{background:rgba(255,255,255,.07);color:var(--w3);border:1px solid var(--bd)}
+.b-lila{background:rgba(124,58,237,.14);color:#A78BFA;border:1px solid rgba(124,58,237,.2)}
+.b-orange{background:rgba(234,88,12,.14);color:#FB923C;border:1px solid rgba(234,88,12,.2)}
+
+/* ── ALERTS ── */
+.alert{border-radius:var(--rb);padding:13px 15px;margin-bottom:12px;font-size:12px;line-height:1.6}
+.alert-t{font-weight:700;font-size:11px;letter-spacing:.5px;margin-bottom:4px;text-transform:uppercase}
+.alert-warn{background:rgba(245,166,35,.08);border:1px solid rgba(245,166,35,.2);color:rgba(248,244,239,.75)}
+.alert-err{background:rgba(200,16,46,.08);border:1px solid rgba(200,16,46,.2);color:rgba(248,244,239,.75)}
+.alert-ok{background:rgba(22,163,74,.08);border:1px solid rgba(22,163,74,.2);color:rgba(248,244,239,.75)}
+.alert-info{background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);color:rgba(248,244,239,.75)}
+
+/* ── STEPS ── */
+.step{display:none}
+.step.active{display:block}
+.step-icon{font-size:52px;text-align:center;margin-bottom:14px}
+.step-title{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;
+  text-align:center;margin-bottom:6px;
+  background:linear-gradient(90deg,#F0C040,#FFFFFF);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.step-sub{text-align:center;font-size:13px;color:var(--w3);margin-bottom:22px;line-height:1.6}
+
+/* ── DNI INPUT ── */
+.dni-big{width:100%;padding:16px;background:var(--g3);border:2px solid rgba(240,192,64,.3);
+  border-radius:var(--ra);color:var(--w);font-size:26px;font-weight:700;
+  letter-spacing:8px;text-align:center;outline:none;transition:border-color .2s;margin-bottom:14px}
+.dni-big:focus{border-color:#F0C040;box-shadow:0 0 0 3px rgba(240,192,64,.1)}
+
+/* ── INTEGRANTE CARD ── */
+.int-card{display:flex;align-items:center;gap:14px;background:var(--g3);
+  border-radius:var(--ra);padding:16px;margin-bottom:14px;border:1px solid var(--bd)}
+.av{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--r),var(--d2));
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex-shrink:0}
+.int-info{flex:1;min-width:0}
+.int-name{font-size:17px;font-weight:700;margin-bottom:3px}
+.int-meta{font-size:11px;color:var(--w3)}
+.int-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
+
+/* ── QR ── */
+.qr-section{text-align:center}
+.qr-box{background:white;border-radius:var(--ra);padding:16px;
+  display:inline-block;margin:16px 0;position:relative;
+  box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.qr-box::before,.qr-box::after{content:'';position:absolute;
+  width:20px;height:20px;border-color:#F0C040;border-style:solid}
+.qr-box::before{top:-3px;left:-3px;border-width:3px 0 0 3px;border-radius:4px 0 0}
+.qr-box::after{bottom:-3px;right:-3px;border-width:0 3px 3px 0;border-radius:0 0 4px}
+
+/* Timer ring */
+.timer-wrap{position:relative;width:72px;height:72px;margin:0 auto 8px}
+.timer-wrap svg{transform:rotate(-90deg)}
+.t-track{stroke:var(--g4)}
+.t-fill{stroke:#F0C040;stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+.t-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'Bebas Neue',sans-serif;font-size:24px;color:#F0C040}
+.qr-hint{font-size:11px;color:var(--w3);margin-top:4px;letter-spacing:.3px}
+
+/* ── SELFIE ── */
+.cam-wrap{position:relative;border-radius:var(--ra);overflow:hidden;
+  background:#000;aspect-ratio:3/4;margin-bottom:12px;max-height:320px}
+#cam-video{width:100%;height:100%;object-fit:cover}
+.cam-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  pointer-events:none}
+.cam-frame{width:200px;height:200px;border:2px solid var(--d);border-radius:50%;
+  box-shadow:0 0 0 9999px rgba(0,0,0,.5)}
+#cam-canvas{display:none}
+.selfie-preview{width:100%;border-radius:var(--ra);margin-bottom:12px;display:none}
+
+/* ── GPS ── */
+.gps-status{display:flex;align-items:center;gap:10px;background:var(--g3);
+  border-radius:var(--rb);padding:12px 14px;margin-bottom:12px;border:1px solid var(--bd)}
+.gps-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;animation:pulse 1.5s infinite}
+.gps-ok .gps-dot{background:#22C55E;animation:none}
+.gps-wait .gps-dot{background:#F0C040}
+.gps-err .gps-dot{background:var(--r);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.gps-text{font-size:12px;font-weight:500}
+.gps-sub{font-size:10px;color:var(--w3);margin-top:2px}
+
+/* ── LOADER ── */
+.loader{display:flex;align-items:center;justify-content:center;
+  padding:32px;color:var(--w3);font-size:13px;gap:8px}
+.spin{width:18px;height:18px;border:2px solid var(--g5);border-top-color:var(--d);
+  border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:40px 20px;color:var(--w3)}
+.empty .ico{font-size:40px;margin-bottom:10px}
+
+/* ── LISTA ASISTENCIA ── */
+.att-item{display:flex;align-items:center;gap:11px;background:var(--g3);
+  border-radius:var(--rb);padding:11px 13px;margin-bottom:7px;
+  border:1px solid var(--bd);cursor:pointer;transition:all .2s}
+.att-item:hover{border-color:rgba(245,166,35,.25);background:var(--g4)}
+.att-av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--r),var(--d2));
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.att-info{flex:1;min-width:0}
+.att-name{font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.att-meta{font-size:10px;color:var(--w3);margin-top:2px}
+.att-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.stat{background:var(--g2);border:1px solid var(--bd);border-radius:var(--rb);
+  padding:11px 8px;text-align:center}
+.stat-n{font-family:'Bebas Neue',sans-serif;font-size:24px;line-height:1;color:#F0C040}
+.stat-l{font-size:9px;color:var(--w3);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;
+  align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--g2);border-radius:20px 20px 0 0;padding:20px;width:100%;
+  max-width:480px;max-height:90vh;overflow-y:auto;
+  border:1px solid var(--bd);border-bottom:none;animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal-handle{width:36px;height:4px;background:var(--g5);border-radius:2px;margin:0 auto 16px}
+.modal-title{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:2px;
+  background:linear-gradient(90deg,var(--d),var(--w));-webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;margin-bottom:16px}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(120px);
+  padding:12px 22px;border-radius:50px;font-weight:700;font-size:13px;z-index:9999;
+  transition:transform .38s cubic-bezier(.34,1.56,.64,1);white-space:nowrap;
+  box-shadow:0 6px 20px rgba(0,0,0,.45);pointer-events:none;max-width:90vw;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast-ok{background:#22C55E}
+.toast-err{background:var(--r)}
+.toast-warn{background:var(--warn)}
+.toast-info{background:var(--info)}
+
+/* ── ENSAYO PANEL ── */
+.ensayo-header{background:linear-gradient(135deg,rgba(201,168,76,.15),rgba(201,168,76,.05));
+  border:1px solid rgba(245,166,35,.15);border-radius:var(--ra);padding:16px;margin-bottom:16px}
+.ensayo-label{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--d);margin-bottom:2px}
+.ensayo-nombre{font-size:18px;font-weight:700;margin-bottom:3px}
+.ensayo-meta{font-size:11px;color:var(--w3)}
+.ensayo-badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+
+/* ── FILTER PILLS ── */
+.pills{display:flex;gap:6px;margin-bottom:14px;overflow-x:auto;padding-bottom:3px}
+.pill{padding:6px 14px;border:none;background:var(--g3);color:var(--w3);
+  font-size:11px;font-weight:600;border-radius:20px;cursor:pointer;
+  white-space:nowrap;transition:all .2s;border:1px solid var(--bd);flex-shrink:0}
+.pill.on{background:linear-gradient(135deg,#C9A84C,#8B6914);color:#000;border-color:#C9A84C;font-weight:700}
+
+/* ── IROW ── */
+.irow{display:flex;justify-content:space-between;align-items:flex-start;
+  padding:9px 0;border-bottom:1px solid var(--bd)}
+.irow:last-child{border-bottom:none}
+.irow-label{font-size:11px;color:var(--w3);flex-shrink:0;margin-right:12px}
+.irow-val{font-size:13px;font-weight:500;text-align:right}
+
+/* ── LINK BADGE ── */
+.link-box{background:var(--g3);border:1px solid rgba(245,166,35,.2);border-radius:var(--rb);
+  padding:12px 14px;display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.link-url{font-size:11px;color:var(--d);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.copy-btn{background:rgba(240,192,64,.15);border:1px solid rgba(240,192,64,.25);
+  color:#F0C040;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;cursor:pointer}
+
+/* Responsive */
+@media(min-width:480px){
+  .page{padding:20px 20px 40px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-ico">🦅</div>
+    <div class="logo-txt">AFCSV</div>
+  </div>
+  <div class="header-sub">
+    <div id="header-ensayo-nombre" style="font-weight:600;font-size:11px;color:var(--w2)">Asistencia</div>
+    <div id="header-fecha"></div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- ── TABS ── -->
+  <div class="tabs" id="tabs-container">
+    <button class="tab on" onclick="setTab('marcar',this)" id="btn-tab-marcar">📱 Marcar</button>
+    <button class="tab" onclick="setTab('lista',this)" id="tab-lista" style="display:none">📋 Lista</button>
+    <button class="tab" onclick="setTab('admin',this)" id="tab-admin" style="display:none">⚙️ Gestión</button>
+  </div>
+
+  <!-- ════════════════════════════════════
+       TAB: MARCAR ASISTENCIA
+  ════════════════════════════════════ -->
+  <div class="step active" id="tab-marcar-content">
+
+    <!-- PASO 0: Sin ensayo activo -->
+    <div class="step active" id="paso-sin-ensayo" style="display:none">
+      <div class="empty">
+        <div class="ico">📋</div>
+        <p style="font-size:15px;font-weight:600;margin-bottom:6px">Sin ensayo activo</p>
+        <p>No hay ningún ensayo habilitado en este momento. Consulta con tu coordinador.</p>
+      </div>
+    </div>
+
+    <!-- PASO 1: DNI -->
+    <div class="step" id="paso-dni" style="display:none">
+      <div class="step-icon">🪪</div>
+      <div class="step-title">MARCAR ASISTENCIA</div>
+      <div class="step-sub" id="sub-ensayo-info">Ingresa tu DNI para continuar</div>
+      <input type="tel" class="dni-big" id="inp-dni" maxlength="8"
+        placeholder="00000000" oninput="this.value=this.value.replace(/\D/g,'')">
+      <button class="btn btn-r" onclick="buscarDNI()" id="btn-buscar">Continuar →</button>
+      <div id="err-dni" class="alert alert-err" style="display:none">
+        <div class="alert-t">⚠ Error</div>
+        <span id="err-dni-txt"></span>
+      </div>
+      <div id="loader-dni" class="loader" style="display:none">
+        <div class="spin"></div> Verificando...
+      </div>
+
+      <!-- Opción QR -->
+      <div style="margin-top:20px">
+        <div style="display:flex;align-items:center;gap:10px;color:var(--w3);font-size:12px;margin-bottom:14px">
+          <div style="flex:1;height:1px;background:var(--bd)"></div>
+          O ESCANEA EL QR
+          <div style="flex:1;height:1px;background:var(--bd)"></div>
+        </div>
+        <button class="btn btn-g" onclick="iniciarEscaneoQR()" id="btn-qr-scan">
+          📷 Escanear QR del ensayo
+        </button>
+        <div id="qr-scan-section" style="display:none">
+          <div class="cam-wrap" style="aspect-ratio:1;max-height:280px">
+            <video id="qr-video" style="width:100%;height:100%;object-fit:cover" autoplay playsinline muted></video>
+            <canvas id="qr-canvas" style="display:none"></canvas>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+              <div style="width:180px;height:180px;border:2px solid var(--d);border-radius:12px;
+                box-shadow:0 0 0 9999px rgba(0,0,0,.5)"></div>
+            </div>
+          </div>
+          <button class="btn btn-g" onclick="detenerEscaneoQR()">✕ Cancelar escaneo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASO 2: Confirmación integrante + alertas -->
+    <div class="step" id="paso-confirmacion">
+      <div class="int-card" id="int-card">
+        <!-- llenado por JS -->
+      </div>
+      <div id="alertas-container"><!-- alertas dinámicas --></div>
+
+      <!-- GPS -->
+      <div class="gps-status gps-wait" id="gps-status">
+        <div class="gps-dot"></div>
+        <div>
+          <div class="gps-text">Obteniendo ubicación...</div>
+          <div class="gps-sub" id="gps-sub">Por favor espera</div>
+        </div>
+      </div>
+
+      <!-- Selfie (si el ensayo la requiere) -->
+      <div id="selfie-section" style="display:none">
+        <div class="card-t" style="margin-bottom:10px">📸 SELFIE OBLIGATORIA</div>
+        <div class="cam-wrap" id="cam-wrap">
+          <video id="cam-video" autoplay playsinline muted></video>
+          <div class="cam-overlay"><div class="cam-frame"></div></div>
+        </div>
+        <canvas id="cam-canvas"></canvas>
+        <img id="selfie-preview" class="selfie-preview" alt="Selfie">
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-r" onclick="capturarSelfie()" id="btn-capturar" style="flex:1;margin-bottom:0">
+            📸 Capturar
+          </button>
+          <button class="btn btn-g" onclick="repetirSelfie()" id="btn-repetir"
+            style="flex:1;margin-bottom:0;display:none">🔄 Repetir</button>
+        </div>
+      </div>
+
+      <div style="height:14px"></div>
+      <button class="btn btn-ok" onclick="confirmarAsistencia()" id="btn-confirmar" disabled>
+        ✅ Confirmar asistencia
+      </button>
+      <button class="btn btn-g" onclick="volverDNI()">← Volver</button>
+    </div>
+
+    <!-- PASO 3: Aspirante (DNI no encontrado) -->
+    <div class="step" id="paso-aspirante">
+      <div class="step-icon">🆕</div>
+      <div class="step-title">DNI NO ENCONTRADO</div>
+      <div class="step-sub">Tu DNI no está en el padrón. Puedes registrarte como aspirante — la JD lo revisará.</div>
+      <div class="card">
+        <div class="card-t">Tus datos</div>
+        <div class="f"><label>DNI</label><input type="tel" id="asp-dni" readonly style="color:var(--w3)"></div>
+        <div class="f-row">
+          <div class="f"><label>Nombres</label><input type="text" id="asp-nombres" placeholder="Nombres"></div>
+          <div class="f"><label>Apellidos</label><input type="text" id="asp-apellidos" placeholder="Apellidos"></div>
+        </div>
+        <div class="f"><label>WhatsApp</label><input type="tel" id="asp-wsp" placeholder="+51 9XX XXX XXX"></div>
+        <div class="f"><label>Correo</label><input type="email" id="asp-correo" placeholder="correo@email.com"></div>
+        <div class="f"><label>Fecha de nacimiento</label><input type="date" id="asp-fnac"></div>
+        <div class="f"><label>Bloque / Filial al que postulas</label>
+          <select id="asp-filial"><option value="">Selecciona...</option></select>
+        </div>
+      </div>
+      <button class="btn btn-d" onclick="registrarAspirante()">📤 Enviar para revisión</button>
+      <button class="btn btn-g" onclick="volverDNI()">← Volver</button>
+    </div>
+
+    <!-- PASO 4: Éxito -->
+    <div class="step" id="paso-exito">
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:72px;margin-bottom:16px" id="exito-ico">✅</div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;letter-spacing:2px;
+          color:var(--d);margin-bottom:8px" id="exito-titulo">¡ASISTENCIA REGISTRADA!</div>
+        <div style="font-size:14px;color:var(--w2);margin-bottom:24px" id="exito-sub"></div>
+        <div style="background:var(--g2);border-radius:var(--ra);padding:16px;
+          border:1px solid var(--bd);text-align:left;margin-bottom:20px" id="exito-detalle">
+        </div>
+        <button class="btn btn-g" id="btn-nueva-marca" onclick="volverDNI()">← Volver al inicio (5s)</button>
+      </div>
+    </div>
+
+  </div><!-- /tab-marcar -->
+
+  <!-- ════════════════════════════════════
+       TAB: LISTA DE ASISTENCIA
+  ════════════════════════════════════ -->
+  <div class="step" id="tab-lista-content" style="display:none">
+    <div id="ensayo-header-lista"><!-- llenado por JS --></div>
+    <div class="stats" id="stats-lista">
+      <div class="stat"><div class="stat-n" id="st-total">0</div><div class="stat-l">Total</div></div>
+      <div class="stat"><div class="stat-n" id="st-conf">0</div><div class="stat-l">Confirm.</div></div>
+      <div class="stat"><div class="stat-n" id="st-tard">0</div><div class="stat-l">Tardanza</div></div>
+      <div class="stat"><div class="stat-n" id="st-pend">0</div><div class="stat-l">Pendiente</div></div>
+    </div>
+    <div class="pills">
+      <button class="pill on" onclick="filtrarLista('todos',this)">Todos</button>
+      <button class="pill" onclick="filtrarLista('confirmado',this)">✅ Confirmados</button>
+      <button class="pill" onclick="filtrarLista('tardanza',this)">⏰ Tardanza</button>
+      <button class="pill" onclick="filtrarLista('pendiente_jd',this)">⏳ Pendiente JD</button>
+      <button class="pill" onclick="filtrarLista('aspirante',this)">🆕 Aspirantes</button>
+    </div>
+    <div id="lista-asistencia">
+      <div class="loader"><div class="spin"></div> Cargando...</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════
+       TAB: GESTIÓN (admin/coordinador)
+  ════════════════════════════════════ -->
+  <div class="step" id="tab-admin-content" style="display:none">
+
+    <!-- Ensayo activo info -->
+    <div id="admin-ensayo-activo">
+      <div class="loader"><div class="spin"></div> Cargando...</div>
+    </div>
+
+    <!-- QR del ensayo activo — aparece aquí cuando hay ensayo -->
+    <div id="qr-admin-section" style="display:none">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;
+        color:var(--d);margin:0 0 12px;display:flex;align-items:center;gap:8px">
+        🔐 QR DINÁMICO
+        <div style="flex:1;height:1px;background:rgba(245,166,35,.13)"></div>
+      </div>
+      <div class="card qr-section">
+        <div class="card-t">Muestra este QR a los integrantes</div>
+        <div class="qr-box"><div id="qrcode-admin"></div></div>
+        <div class="timer-wrap">
+          <svg width="72" height="72" viewBox="0 0 72 72">
+            <circle class="t-track" cx="36" cy="36" r="30" fill="none" stroke-width="5"/>
+            <circle class="t-fill" id="timer-arc" cx="36" cy="36" r="30"
+              fill="none" stroke-width="5" stroke-dasharray="188.5" stroke-dashoffset="0"/>
+          </svg>
+          <div class="t-num" id="timer-num">20</div>
+        </div>
+        <div class="qr-hint">🔐 El QR caduca cada 20s — no sirve reenviarlo</div>
+        <div style="margin-top:16px;text-align:left">
+          <div class="card-t">LINK ALTERNATIVO SIN QR</div>
+          <div class="link-box">
+            <div class="link-url" id="link-directo-url">—</div>
+            <button class="copy-btn" onclick="copiarLink()">Copiar</button>
+          </div>
+          <div style="font-size:11px;color:var(--w3)">
+            Comparte este link solo si el QR no funciona. Caduca junto con el ensayo.
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <button class="btn btn-g btn-sm" onclick="cerrarEnsayo()" style="flex:1">🔒 Cerrar ensayo</button>
+        <button class="btn btn-info btn-sm" onclick="exportarLista()" style="flex:1">📋 Exportar lista</button>
+      </div>
+    </div>
+
+    <!-- Crear nuevo ensayo — solo visible si no hay ensayo activo -->
+    <div id="crear-ensayo-section" style="margin-top:4px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;
+        color:var(--d);margin:20px 0 12px;display:flex;align-items:center;gap:8px">
+        ➕ NUEVO ENSAYO
+        <div style="flex:1;height:1px;background:rgba(245,166,35,.13)"></div>
+      </div>
+      <div class="card">
+        <div class="f"><label>Nombre del ensayo</label>
+          <input type="text" id="cfg-nombre" placeholder="ej. Ensayo General · Semana 5"></div>
+        <div class="f-row">
+          <div class="f"><label>Tipo</label>
+            <select id="cfg-tipo">
+              <option value="regular">Regular</option>
+              <option value="extra">Extra</option>
+              <option value="coreografia">Coreografía</option>
+            </select>
+          </div>
+          <div class="f"><label>Fecha</label>
+            <input type="date" id="cfg-fecha"></div>
+        </div>
+        <div class="f-row">
+          <div class="f"><label>Hora inicio</label><input type="time" id="cfg-hora-inicio"></div>
+          <div class="f"><label>Minutos tardanza</label>
+            <input type="number" id="cfg-tardanza" value="15" min="1" max="60"></div>
+        </div>
+        <div class="f-row">
+          <div class="f"><label>Ventana apertura</label><input type="time" id="cfg-ventana-ini"></div>
+          <div class="f"><label>Ventana cierre</label><input type="time" id="cfg-ventana-fin"></div>
+        </div>
+        <div class="f"><label>Lugar de ensayo</label>
+          <select id="cfg-lugar-sel" onchange="seleccionarLugar(this.value)">
+            <option value="">Selecciona un lugar...</option>
+            <option value="custom">+ Otro lugar (ingresar manualmente)</option>
+          </select>
+        </div>
+        <div id="cfg-lugar-custom" style="display:none">
+          <div class="f"><label>Dirección manual</label>
+            <input type="text" id="cfg-lugar" placeholder="ej. Av. Brasil 1200, Jesús María"></div>
+        </div>
+        <div id="cfg-lugar-info" style="display:none" class="alert alert-info" >
+          <div class="alert-t">📍 Lugar seleccionado</div>
+          <span id="cfg-lugar-info-txt"></span>
+        </div>
+        <div class="f-row">
+          <div class="f"><label>Integrantes esperados</label>
+            <input type="number" id="cfg-esperados" placeholder="ej. 45" min="1"></div>
+          <div class="f"><label>Radio GPS (metros)</label>
+            <input type="number" id="cfg-radio" value="150" min="50" max="1000"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+          <input type="checkbox" id="cfg-selfie" style="width:auto;cursor:pointer">
+          <label for="cfg-selfie" style="font-size:13px;cursor:pointer;color:var(--w)">
+            Requerir selfie al marcar asistencia
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <input type="checkbox" id="cfg-gps" checked style="width:auto;cursor:pointer">
+          <label for="cfg-gps" style="font-size:13px;cursor:pointer;color:var(--w)">
+            Capturar GPS automáticamente
+          </label>
+        </div>
+        <button class="btn btn-d" onclick="crearEnsayo()">⚡ Crear y activar ensayo</button>
+      </div>
+    </div>
+
+
+    </div><!-- /crear-ensayo-section -->
+  </div><!-- /tab-admin -->
+
+</div><!-- /page -->
+
+<!-- ── MODAL: Detalle de marca ── -->
+<div class="modal-bg" id="modal-marca">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-marca-title">Detalle</div>
+    <div id="modal-marca-content"></div>
+    <div id="modal-regularizar" style="display:none">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:1.5px;
+        color:var(--d);margin:14px 0 10px">REGULARIZAR (dentro de 48hrs)</div>
+      <div class="f"><label>Motivo</label>
+        <textarea id="reg-motivo" placeholder="Explica el motivo de la regularización..."></textarea></div>
+      <div class="f"><label>Foto de sustento (opcional)</label>
+        <input type="file" id="reg-foto" accept="image/*" capture="environment"
+          style="padding:8px;font-size:12px"></div>
+      <div class="f"><label>Cambiar estado a</label>
+        <select id="reg-estado">
+          <option value="confirmado">✅ Confirmado</option>
+          <option value="tardanza">⏰ Tardanza justificada</option>
+          <option value="rechazado">❌ Rechazado</option>
+        </select>
+      </div>
+      <button class="btn btn-ok" onclick="guardarRegularizacion()">💾 Guardar regularización</button>
+    </div>
+    <button class="btn btn-g" onclick="cerrarModal()" style="margin-top:4px">Cerrar</button>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONFIG SUPABASE
+// ═══════════════════════════════════════════════════════
+const SUPA_URL = 'https://ovthlkfsgerszrwbbljd.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92dGhsa2ZzZ2Vyc3pyd2JibGpkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI0MjM0OTQsImV4cCI6MjA4Nzk5OTQ5NH0.IFEBikFPxCE9KBWwaIEoUlq7BadSICcGJGz2N4ooTBY';
+const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+// ═══════════════════════════════════════════════════════
+//  ESTADO
+// ═══════════════════════════════════════════════════════
+const S = {
+  ensayo: null,         // ensayo activo
+  persona: null,        // integrante validado
+  gps: null,            // {lat, lng, distancia}
+  gpsOk: false,
+  selfieBlob: null,
+  selfieOk: false,
+  camStream: null,
+  qrStream: null,
+  qrInterval: null,
+  timerInterval: null,
+  qrInstance: null,
+  tokenActual: '',
+  timerSecs: 20,
+  filtroLista: 'todos',
+  listaRegistros: [],
+  marcaEditando: null,
+  // Rol del usuario logueado (viene por URL param o localStorage)
+  rol: null,
+  userId: null,
+  filialId: null,
+};
+
+const ROLES_ADMIN = ['JD_coord','JD_miembro','JDN_miembro','admin_nacional','super_admin'];
+const ROLES_SUPER = ['super_admin','admin_nacional','JDN_miembro'];
+const QR_DURACION = 20; // segundos
+const CIRC = 188.5;
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+window.addEventListener('load', async () => {
+  // Fecha en header
+  document.getElementById('header-fecha').textContent =
+    new Date().toLocaleDateString('es-PE',{weekday:'short',day:'numeric',month:'short'});
+
+  // Leer params de URL (token de ensayo o rol)
+  const params = new URLSearchParams(location.search);
+  const ensayoToken = params.get('e'); // link directo con token
+  const rolParam    = params.get('r'); // rol del usuario
+  const userParam   = params.get('u'); // user id
+  const filialParam = params.get('f'); // filial id
+
+  if(rolParam)    S.rol      = rolParam;
+  if(userParam)   S.userId   = userParam;
+  if(filialParam) S.filialId = filialParam;
+
+  // Configurar tabs según rol
+  configurarTabs();
+
+  // Cargar filiales para formulario aspirante
+  cargarFiliales();
+
+  // Si viene con token de ensayo en URL → validar directo
+  if(ensayoToken){
+    await validarTokenURL(ensayoToken);
+  } else {
+    await cargarEnsayoActivo();
+  }
+
+  // Si es admin → cargar datos de gestión
+  if(ROLES_ADMIN.includes(S.rol)){
+    cargarAdminPanel();
+  }
+});
+
+function configurarTabs(){
+  const esAdmin = ROLES_ADMIN.includes(S.rol);
+  // Mostrar/ocultar botones de tab
+  document.getElementById('tab-lista').style.display = esAdmin ? 'block' : 'none';
+  document.getElementById('tab-admin').style.display = esAdmin ? 'block' : 'none';
+  // Si no es admin, ocultar el contenedor de tabs (solo ve marcar)
+  document.getElementById('tabs-container').style.display = esAdmin ? 'flex' : 'none';
+  // Los divs de contenido de lista y admin empiezan ocultos siempre
+  document.getElementById('tab-lista-content').style.display = 'none';
+  document.getElementById('tab-admin-content').style.display = 'none';
+  document.getElementById('tab-marcar-content').style.display = 'block';
+}
+
+// ═══════════════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════════════
+function setTab(tab, btn){
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('on'));
+  btn.classList.add('on');
+  // Ocultar todos los divs de contenido
+  ['marcar','lista','admin'].forEach(t=>{
+    const el = document.getElementById(`tab-${t}-content`);
+    if(el) el.style.display = 'none';
+  });
+  const target = document.getElementById(`tab-${tab}-content`);
+  if(target) target.style.display = 'block';
+  if(tab === 'lista') cargarListaAsistencia();
+  if(tab === 'admin') cargarAdminPanel();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CARGAR ENSAYO ACTIVO
+// ═══════════════════════════════════════════════════════
+async function cargarEnsayoActivo(){
+  const hoy = new Date().toISOString().split('T')[0];
+  let q = sb.from('ensayos').select('*').eq('fecha', hoy).eq('estado','activo');
+
+  // Si tiene filial, filtrar por filial
+  if(S.filialId) q = q.eq('filial_id', S.filialId);
+
+  const { data } = await q.order('created_at',{ascending:false}).limit(1);
+
+  if(!data || data.length === 0){
+    mostrarPaso('paso-sin-ensayo');
+    return;
+  }
+
+  S.ensayo = data[0];
+  document.getElementById('header-ensayo-nombre').textContent = S.ensayo.nombre;
+  document.getElementById('sub-ensayo-info').textContent =
+    `${S.ensayo.nombre} · ${S.ensayo.hora_inicio || ''}`;
+
+  mostrarPaso('paso-dni');
+}
+
+// ═══════════════════════════════════════════════════════
+//  VALIDAR TOKEN DE URL (link directo)
+// ═══════════════════════════════════════════════════════
+async function validarTokenURL(token){
+  // Buscar ensayo con ese link_directo activo
+  const { data } = await sb.from('ensayos')
+    .select('*').eq('link_directo', token).eq('estado','activo').limit(1);
+
+  if(!data || data.length === 0){
+    mostrarError('El link no es válido o el ensayo ya cerró.');
+    return;
+  }
+  S.ensayo = data[0];
+  document.getElementById('header-ensayo-nombre').textContent = S.ensayo.nombre;
+  mostrarPaso('paso-dni');
+}
+
+// ═══════════════════════════════════════════════════════
+//  BUSCAR DNI
+// ═══════════════════════════════════════════════════════
+async function buscarDNI(){
+  const dni = document.getElementById('inp-dni').value.trim();
+  if(dni.length !== 8){ mostrarErrDNI('El DNI debe tener 8 dígitos'); return; }
+  if(!S.ensayo){ mostrarErrDNI('No hay ensayo activo'); return; }
+
+  setLoader(true);
+  ocultarErrDNI();
+
+  try {
+    // 1. Buscar persona
+    const { data: personas } = await sb.from('personas')
+      .select('id,dni,nombres,apellidos,estado_membresia,figura,filial_id,tiene_deuda,fecha_nacimiento,bloque_anterior_id,fecha_salida_anterior,filiales!personas_filial_id_fkey(nombre)')
+      .eq('dni', dni).limit(1);
+
+    if(!personas || personas.length === 0){
+      // Aspirante
+      document.getElementById('asp-dni').value = dni;
+      mostrarPaso('paso-aspirante');
+      return;
+    }
+
+    const persona = personas[0];
+    S.persona = persona;
+
+    // 2. Verificar si ya marcó hoy
+    const { data: yaMarco } = await sb.from('asistencia')
+      .select('id,tipo,estado_registro')
+      .eq('ensayo_id', S.ensayo.id)
+      .eq('persona_id', persona.id)
+      .limit(1);
+
+    if(yaMarco && yaMarco.length > 0){
+      mostrarErrDNI(`Ya tienes asistencia registrada hoy (${yaMarco[0].estado_registro})`);
+      return;
+    }
+
+    // 3. Construir alertas
+    await construirAlertas(persona);
+
+    // 4. Mostrar card
+    renderIntCard(persona);
+
+    // 5. GPS
+    iniciarGPS();
+
+    // 6. Selfie si la requiere el ensayo
+    if(S.ensayo.requiere_selfie){
+      document.getElementById('selfie-section').style.display = 'block';
+      iniciarCamara();
+    } else {
+      S.selfieOk = true;
+    }
+
+    mostrarPaso('paso-confirmacion');
+
+  } catch(e){
+    mostrarErrDNI('Error de conexión: ' + e.message);
+  } finally {
+    setLoader(false);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  RENDER INTEGRANTE CARD
+// ═══════════════════════════════════════════════════════
+function renderIntCard(p){
+  const ini = ((p.nombres||'')[0]+(p.apellidos||'')[0]).toUpperCase();
+  const edad = p.fecha_nacimiento ? calcEdad(p.fecha_nacimiento) : null;
+  const esCumple = esCumpleaños(p.fecha_nacimiento);
+
+  document.getElementById('int-card').innerHTML = `
+    <div class="av">${ini}</div>
+    <div class="int-info">
+      <div class="int-name">${esCumple ? '🎂 ' : ''}${p.nombres} ${p.apellidos}</div>
+      <div class="int-meta">
+        ${p.filiales?.nombre || '—'} · DNI ${p.dni}
+        ${p.figura ? `· ${p.figura}` : ''} ${edad ? `· ${edad}a` : ''}
+      </div>
+      <div class="int-badges">
+        ${estadoBadge(p.estado_membresia)}
+        ${p.figura ? `<span class="b b-info">${p.figura}</span>` : ''}
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONSTRUIR ALERTAS
+// ═══════════════════════════════════════════════════════
+async function construirAlertas(p){
+  const alertas = [];
+  const hoy = new Date().toISOString().split('T')[0];
+
+  // 🎂 Cumpleaños
+  if(esCumpleaños(p.fecha_nacimiento)){
+    alertas.push({tipo:'ok', titulo:'🎂 ¡Feliz cumpleaños!',
+      texto:`Hoy cumples años. ¡Que lo disfrutes bailando!`});
+  }
+
+  // 💰 Deuda
+  if(p.tiene_deuda){
+    alertas.push({tipo:'warn', titulo:'💰 Deuda pendiente',
+      texto:'Tienes pagos pendientes. Coordina con tu tesorero.'});
+  }
+
+  // 📋 Licencia activa
+  const { data: lic } = await sb.from('licencias_permisos')
+    .select('tipo,motivo,fecha_fin')
+    .eq('persona_id', p.id).eq('estado','activa')
+    .lte('fecha_inicio', hoy)
+    .or(`fecha_fin.gte.${hoy},fecha_fin.is.null`)
+    .limit(1);
+  if(lic && lic.length > 0){
+    alertas.push({tipo:'info', titulo:'📋 Licencia activa',
+      texto:`Tienes licencia por ${lic[0].motivo}. Tu asistencia se marcará como licencia.`});
+    S.tipoAsistencia = 'licencia';
+  } else {
+    S.tipoAsistencia = calcularTipoAsistencia();
+  }
+
+  // ⚠️ Sanción activa
+  const { data: sanc } = await sb.from('sanciones')
+    .select('tipo_falta,medida')
+    .eq('persona_id', p.id)
+    .eq('estado','ejecutada')
+    .gte('fecha_ejecucion', hoy)
+    .limit(1);
+  if(sanc && sanc.length > 0){
+    alertas.push({tipo:'err', titulo:'⚠️ Sanción activa',
+      texto:`Tienes una sanción ${sanc[0].tipo_falta} vigente. Consulta con tu coordinador.`});
+  }
+
+  // ⏰ Bloque anterior (< 12 meses)
+  if(p.fecha_salida_anterior){
+    const meses = mesesDesde(p.fecha_salida_anterior);
+    if(meses !== null && meses < 12){
+      alertas.push({tipo:'err', titulo:'⚠️ Cambio de bloque reciente',
+        texto:`Saliste de tu bloque anterior hace ${meses} meses. Necesitas autorización de la JDN (mínimo 12 meses).`});
+    }
+  }
+
+  // ⏰ Tardanza
+  if(S.ensayo.hora_inicio && S.ensayo.minutos_tardanza){
+    const ahora = new Date();
+    const [h,m] = S.ensayo.hora_inicio.split(':').map(Number);
+    const limiteT = new Date(ahora); limiteT.setHours(h, m + S.ensayo.minutos_tardanza, 0);
+    if(ahora > limiteT){
+      alertas.push({tipo:'warn', titulo:'⏰ Tardanza',
+        texto:`Llegaste después de los ${S.ensayo.minutos_tardanza} minutos permitidos.`});
+      S.tipoAsistencia = 'tardanza';
+    }
+  }
+
+  // Renderizar
+  const cont = document.getElementById('alertas-container');
+  cont.innerHTML = alertas.map(a => `
+    <div class="alert alert-${a.tipo}">
+      <div class="alert-t">${a.titulo}</div>
+      ${a.texto}
+    </div>`).join('');
+}
+
+function calcularTipoAsistencia(){
+  if(!S.ensayo?.hora_inicio) return 'confirmado';
+  const ahora = new Date();
+  const [h,m] = S.ensayo.hora_inicio.split(':').map(Number);
+  const limite = new Date(ahora); limite.setHours(h, m + (S.ensayo.minutos_tardanza||15), 0);
+  return ahora > limite ? 'tardanza' : 'confirmado';
+}
+
+// ═══════════════════════════════════════════════════════
+//  GPS
+// ═══════════════════════════════════════════════════════
+function iniciarGPS(){
+  S.gpsOk = false;
+  document.getElementById('btn-confirmar').disabled = true;
+  setGPSStatus('wait','Obteniendo ubicación...','Por favor espera');
+
+  if(!navigator.geolocation){
+    setGPSStatus('err','GPS no disponible','Tu dispositivo no tiene GPS');
+    S.gpsOk = true; // permitir igualmente
+    verificarLisotParaConfirmar();
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      S.gps = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+
+      // Calcular distancia si el ensayo tiene referencia
+      if(S.ensayo.lat_referencia && S.ensayo.lng_referencia){
+        const dist = calcDistancia(S.gps.lat, S.gps.lng,
+          S.ensayo.lat_referencia, S.ensayo.lng_referencia);
+        S.gps.distancia = Math.round(dist);
+        const radio = S.ensayo.radio_metros || 200;
+
+        if(dist <= radio){
+          setGPSStatus('ok',`Ubicación verificada ✓`,`A ${Math.round(dist)}m del lugar de ensayo`);
+          S.gpsOk = true;
+        } else {
+          setGPSStatus('err',`Fuera del área (${Math.round(dist)}m)`,
+            `Radio permitido: ${radio}m — Quedará pendiente de revisión JD`);
+          S.gpsOk = true; // registrar de todas formas como pendiente
+          S.tipoAsistencia = 'pendiente_jd';
+          S.motivo_pendiente = `Fuera del área GPS: ${Math.round(dist)}m (radio: ${radio}m)`;
+        }
+      } else {
+        setGPSStatus('ok','Ubicación capturada ✓',
+          `${S.gps.lat.toFixed(5)}, ${S.gps.lng.toFixed(5)}`);
+        S.gpsOk = true;
+      }
+      verificarListoParaConfirmar();
+    },
+    err => {
+      const msgs = {1:'Permiso denegado',2:'Posición no disponible',3:'Tiempo agotado'};
+      setGPSStatus('err', msgs[err.code]||'Error GPS',
+        'Marca quedará pendiente de revisión JD');
+      S.gps = null;
+      S.gpsOk = true;
+      S.tipoAsistencia = 'pendiente_jd';
+      S.motivo_pendiente = 'GPS no disponible';
+      verificarListoParaConfirmar();
+    },
+    { enableHighAccuracy:true, timeout:12000, maximumAge:0 }
+  );
+}
+
+function setGPSStatus(tipo, txt, sub){
+  const el = document.getElementById('gps-status');
+  el.className = `gps-status gps-${tipo}`;
+  el.querySelector('.gps-text').textContent = txt;
+  document.getElementById('gps-sub').textContent = sub || '';
+}
+
+function calcDistancia(lat1,lng1,lat2,lng2){
+  const R=6371000, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function verificarListoParaConfirmar(){
+  const listo = S.gpsOk && S.selfieOk;
+  document.getElementById('btn-confirmar').disabled = !listo;
+}
+
+// ═══════════════════════════════════════════════════════
+//  CÁMARA / SELFIE
+// ═══════════════════════════════════════════════════════
+async function iniciarCamara(){
+  try {
+    S.camStream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:'user', width:640, height:480 }, audio:false
+    });
+    document.getElementById('cam-video').srcObject = S.camStream;
+  } catch(e){
+    showToast('No se pudo acceder a la cámara','err');
+    S.selfieOk = true;
+    document.getElementById('selfie-section').style.display = 'none';
+    verificarListoParaConfirmar();
+  }
+}
+
+function capturarSelfie(){
+  const video = document.getElementById('cam-video');
+  const canvas = document.getElementById('cam-canvas');
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video,0,0);
+  canvas.toBlob(blob => {
+    S.selfieBlob = blob;
+    const url = URL.createObjectURL(blob);
+    const preview = document.getElementById('selfie-preview');
+    preview.src = url; preview.style.display = 'block';
+    document.getElementById('cam-wrap').style.display = 'none';
+    document.getElementById('btn-capturar').style.display = 'none';
+    document.getElementById('btn-repetir').style.display = 'flex';
+    S.selfieOk = true;
+    if(S.camStream){ S.camStream.getTracks().forEach(t=>t.stop()); S.camStream=null; }
+    verificarListoParaConfirmar();
+  }, 'image/jpeg', 0.8);
+}
+
+function repetirSelfie(){
+  S.selfieBlob = null; S.selfieOk = false;
+  document.getElementById('selfie-preview').style.display = 'none';
+  document.getElementById('cam-wrap').style.display = 'block';
+  document.getElementById('btn-capturar').style.display = 'flex';
+  document.getElementById('btn-repetir').style.display = 'none';
+  iniciarCamara();
+  verificarListoParaConfirmar();
+}
+
+// ═══════════════════════════════════════════════════════
+//  CONFIRMAR ASISTENCIA
+// ═══════════════════════════════════════════════════════
+async function confirmarAsistencia(){
+  const btn = document.getElementById('btn-confirmar');
+  btn.disabled = true; btn.textContent = 'Registrando...';
+
+  try {
+    let selfieUrl = null;
+
+    // Subir selfie a Supabase Storage
+    if(S.selfieBlob){
+      const fileName = `${S.ensayo.id}/${S.persona.id}_${Date.now()}.jpg`;
+      const { data: upload, error: upErr } = await sb.storage
+        .from('pagos-capturas') // reutilizamos el bucket existente
+        .upload(`selfies/${fileName}`, S.selfieBlob, { contentType:'image/jpeg', upsert:true });
+      if(!upErr && upload){
+        const { data: { publicUrl } } = sb.storage.from('pagos-capturas').getPublicUrl(`selfies/${fileName}`);
+        selfieUrl = publicUrl;
+      }
+    }
+
+    const registro = {
+      ensayo_id:        S.ensayo.id,
+      persona_id:       S.persona.id,
+      tipo:             S.tipoAsistencia || 'confirmado',
+      estado_registro:  S.tipoAsistencia || 'confirmado',
+      hora_registro:    new Date().toISOString(),
+      selfie_url:       selfieUrl,
+      lat:              S.gps?.lat || null,
+      lng:              S.gps?.lng || null,
+      distancia_metros: S.gps?.distancia || null,
+      motivo_pendiente: S.motivo_pendiente || null,
+      token_usado:      S.tokenActual || null,
+    };
+
+    const { error } = await sb.from('asistencia').insert(registro);
+
+    if(error){
+      showToast('Error al registrar: '+error.message,'err');
+      btn.disabled=false; btn.textContent='✅ Confirmar asistencia';
+      return;
+    }
+
+    // Mostrar éxito
+    mostrarExito();
+
+  } catch(e){
+    showToast('Error: '+e.message,'err');
+    btn.disabled=false; btn.textContent='✅ Confirmar asistencia';
+  }
+}
+
+function mostrarExito(){
+  const tipo = S.tipoAsistencia || 'confirmado';
+  const iconos  = {confirmado:'✅',tardanza:'⏰',pendiente_jd:'⏳',licencia:'📋',aspirante:'🆕'};
+  const titulos = {confirmado:'¡ASISTENCIA REGISTRADA!',tardanza:'TARDANZA REGISTRADA',
+    pendiente_jd:'PENDIENTE DE REVISIÓN',licencia:'LICENCIA REGISTRADA',aspirante:'ENVIADO A REVISIÓN'};
+  const subs    = {confirmado:'Tu asistencia fue confirmada correctamente.',
+    tardanza:'Se registró tardanza. Puedes justificarla con tu coordinador.',
+    pendiente_jd:'La JD revisará tu marca (GPS fuera de rango o no disponible).',
+    licencia:'Se registró tu licencia activa. No cuenta como asistencia regular.',
+    aspirante:'Tu solicitud fue enviada. La JD te notificará.'};
+
+  document.getElementById('exito-ico').textContent    = iconos[tipo]  || '✅';
+  document.getElementById('exito-titulo').textContent = titulos[tipo] || '¡LISTO!';
+  document.getElementById('exito-sub').textContent    = subs[tipo]    || '';
+  document.getElementById('exito-detalle').innerHTML  = `
+    <div class="irow"><span style="font-size:11px;color:var(--w3)">Nombre</span>
+      <span style="font-size:13px;font-weight:600">${S.persona.nombres} ${S.persona.apellidos}</span></div>
+    <div class="irow"><span style="font-size:11px;color:var(--w3)">Ensayo</span>
+      <span style="font-size:13px">${S.ensayo.nombre}</span></div>
+    <div class="irow"><span style="font-size:11px;color:var(--w3)">Hora</span>
+      <span style="font-size:13px">${new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'})}</span></div>
+    <div class="irow"><span style="font-size:11px;color:var(--w3)">Estado</span>
+      <span>${estadoBadgeAsist(tipo)}</span></div>`;
+
+  // Detener streams
+  if(S.camStream){ S.camStream.getTracks().forEach(t=>t.stop()); S.camStream=null; }
+
+  mostrarPaso('paso-exito');
+  showToast(titulos[tipo] || '¡Listo!','ok');
+
+  // Auto-volver al inicio después de 5 segundos
+  // Usamos setTimeout encadenado para asegurar que el DOM esté listo
+  let cuenta = 5;
+  const tick = () => {
+    const btn = document.getElementById('btn-nueva-marca');
+    if(btn) btn.textContent = `← Volver al inicio (${cuenta}s)`;
+    if(cuenta <= 0){ volverDNI(); return; }
+    cuenta--;
+    setTimeout(tick, 1000);
+  };
+  setTimeout(tick, 100); // pequeño delay para que el DOM se pinte
+}
+
+// ═══════════════════════════════════════════════════════
+//  ESCANEO QR
+// ═══════════════════════════════════════════════════════
+async function iniciarEscaneoQR(){
+  document.getElementById('qr-scan-section').style.display = 'block';
+  document.getElementById('btn-qr-scan').style.display = 'none';
+
+  try {
+    S.qrStream = await navigator.mediaDevices.getUserMedia({
+      video:{ facingMode:'environment' }, audio:false
+    });
+    const video = document.getElementById('qr-video');
+    video.srcObject = S.qrStream;
+    video.play();
+    S.qrInterval = setInterval(() => leerQRFrame(video), 300);
+  } catch(e){
+    showToast('No se pudo acceder a la cámara trasera','err');
+    detenerEscaneoQR();
+  }
+}
+
+function leerQRFrame(video){
+  const canvas = document.getElementById('qr-canvas');
+  if(video.readyState !== video.HAVE_ENOUGH_DATA) return;
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video,0,0);
+  const imageData = ctx.getImageData(0,0,canvas.width,canvas.height);
+  const code = jsQR(imageData.data, imageData.width, imageData.height);
+  if(code && code.data){
+    detenerEscaneoQR();
+    procesarTokenQR(code.data);
+  }
+}
+
+function detenerEscaneoQR(){
+  clearInterval(S.qrInterval);
+  if(S.qrStream){ S.qrStream.getTracks().forEach(t=>t.stop()); S.qrStream=null; }
+  document.getElementById('qr-scan-section').style.display = 'none';
+  document.getElementById('btn-qr-scan').style.display = 'flex';
+}
+
+async function procesarTokenQR(token){
+  // Formato: CAP:{timestamp}:{rand}:{ensayo_id}
+  const partes = token.split(':');
+  if(partes.length < 4 || partes[0] !== 'CAP'){
+    showToast('QR inválido','err'); return;
+  }
+  const ts = parseInt(partes[1]);
+  const ahora = Math.floor(Date.now()/1000);
+  if(ahora - ts > QR_DURACION + 5){ // 5s de tolerancia
+    showToast('QR expirado — pide uno nuevo al encargado','warn'); return;
+  }
+
+  S.tokenActual = token;
+  // El QR es válido, ahora pedir DNI
+  showToast('QR válido ✓ — ingresa tu DNI','ok');
+  document.getElementById('inp-dni').focus();
+}
+
+// ═══════════════════════════════════════════════════════
+//  ASPIRANTE
+// ═══════════════════════════════════════════════════════
+async function registrarAspirante(){
+  const nombres   = document.getElementById('asp-nombres').value.trim();
+  const apellidos = document.getElementById('asp-apellidos').value.trim();
+  const wsp       = document.getElementById('asp-wsp').value.trim();
+  const correo    = document.getElementById('asp-correo').value.trim();
+  const fnac      = document.getElementById('asp-fnac').value;
+  const filialId  = document.getElementById('asp-filial').value;
+  const dni       = document.getElementById('asp-dni').value;
+
+  if(!nombres||!apellidos||!filialId){
+    showToast('Completa nombre y bloque al menos','warn'); return;
+  }
+
+  // Insertar en solicitudes_registro
+  const { error: solErr } = await sb.from('solicitudes_registro').insert({
+    dni, nombres, apellidos, correo, telefono: wsp, filial_id: filialId||null,
+    estado:'pendiente'
+  });
+
+  if(solErr && solErr.code !== '23505'){
+    showToast('Error: '+solErr.message,'err'); return;
+  }
+
+  // Registrar asistencia como aspirante_observado
+  if(S.ensayo){
+    await sb.from('asistencia').insert({
+      ensayo_id: S.ensayo.id,
+      persona_id: null, // aspirante sin persona aún
+      tipo: 'aspirante_observado',
+      estado_registro: 'aspirante',
+      hora_registro: new Date().toISOString(),
+      motivo_pendiente: `Aspirante: ${nombres} ${apellidos} - DNI ${dni}`,
+      lat: S.gps?.lat||null, lng: S.gps?.lng||null,
+    });
+  }
+
+  showToast('📤 Datos enviados — la JD te contactará','ok');
+  setTimeout(volverDNI, 2000);
+}
+
+async function cargarFiliales(){
+  const { data } = await sb.from('filiales').select('id,nombre,ciudad').order('nombre');
+  const sel = document.getElementById('asp-filial');
+  if(data) data.forEach(f=>{
+    const o = document.createElement('option');
+    o.value=f.id; o.textContent=`${f.nombre} — ${f.ciudad||''}`;
+    sel.appendChild(o);
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+//  LISTA DE ASISTENCIA (admin)
+// ═══════════════════════════════════════════════════════
+async function cargarListaAsistencia(){
+  const el = document.getElementById('lista-asistencia');
+  el.innerHTML = '<div class="loader"><div class="spin"></div> Cargando...</div>';
+
+  if(!S.ensayo){ el.innerHTML='<div class="empty"><p>Sin ensayo activo</p></div>'; return; }
+
+  const { data } = await sb.from('asistencia')
+    .select('*, personas(nombres,apellidos,figura,filiales!personas_filial_id_fkey(nombre))')
+    .eq('ensayo_id', S.ensayo.id)
+    .order('hora_registro',{ascending:false});
+
+  S.listaRegistros = data || [];
+  renderLista();
+  actualizarStats();
+}
+
+function renderLista(){
+  const el = document.getElementById('lista-asistencia');
+  let lista = [...S.listaRegistros];
+  if(S.filtroLista !== 'todos') lista = lista.filter(r=>r.estado_registro===S.filtroLista);
+
+  if(lista.length===0){
+    el.innerHTML='<div class="empty"><div class="ico">📋</div><p>Sin registros</p></div>'; return;
+  }
+
+  el.innerHTML = lista.map(r=>{
+    const p = r.personas;
+    const nombre = p ? `${p.nombres} ${p.apellidos}` : r.motivo_pendiente||'Aspirante';
+    const ini = nombre.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+    return `
+    <div class="att-item" onclick="abrirMarca('${r.id}')">
+      <div class="att-av">${ini}</div>
+      <div class="att-info">
+        <div class="att-name">${nombre}</div>
+        <div class="att-meta">${p?.figura||''} ${p?.filiales?.nombre ? '· '+p.filiales.nombre : ''} · ${hora}</div>
+      </div>
+      <div class="att-right">
+        ${estadoBadgeAsist(r.estado_registro)}
+        ${r.selfie_url?'<span class="b b-gray">📸</span>':''}
+        ${r.lat?'<span class="b b-gray">📍</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function actualizarStats(){
+  const r = S.listaRegistros;
+  document.getElementById('st-total').textContent = r.length;
+  document.getElementById('st-conf').textContent  = r.filter(x=>x.estado_registro==='confirmado').length;
+  document.getElementById('st-tard').textContent  = r.filter(x=>x.estado_registro==='tardanza').length;
+  document.getElementById('st-pend').textContent  = r.filter(x=>x.estado_registro==='pendiente_jd').length;
+}
+
+function filtrarLista(f, btn){
+  S.filtroLista = f;
+  document.querySelectorAll('.pills .pill').forEach(p=>p.classList.remove('on'));
+  btn.classList.add('on');
+  renderLista();
+}
+
+// ═══════════════════════════════════════════════════════
+//  DETALLE / REGULARIZAR MARCA
+// ═══════════════════════════════════════════════════════
+function abrirMarca(id){
+  const r = S.listaRegistros.find(x=>x.id===id);
+  if(!r) return;
+  S.marcaEditando = r;
+  const p = r.personas;
+  const nombre = p ? `${p.nombres} ${p.apellidos}` : 'Aspirante';
+  const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+
+  document.getElementById('modal-marca-title').textContent = nombre;
+  document.getElementById('modal-marca-content').innerHTML = `
+    <div class="irow"><span class="irow-label">Estado</span>${estadoBadgeAsist(r.estado_registro)}</div>
+    <div class="irow"><span class="irow-label">Tipo</span><span class="irow-val">${r.tipo}</span></div>
+    <div class="irow"><span class="irow-label">Hora</span><span class="irow-val">${hora}</span></div>
+    ${r.lat?`<div class="irow"><span class="irow-label">GPS</span><span class="irow-val">${r.lat.toFixed(4)}, ${r.lng.toFixed(4)} ${r.distancia_metros?`(${r.distancia_metros}m)`:''}</span></div>`:''}
+    ${r.motivo_pendiente?`<div class="irow"><span class="irow-label">Motivo</span><span class="irow-val" style="font-size:11px">${r.motivo_pendiente}</span></div>`:''}
+    ${r.selfie_url?`<img src="${r.selfie_url}" style="width:100%;border-radius:var(--rb);margin-top:12px">`: ''}
+    ${r.regularizado_at?`<div class="alert alert-ok" style="margin-top:12px"><div class="alert-t">✅ Regularizado</div>${r.motivo_regularizacion||''}</div>`:''}`;
+
+  // Mostrar regularización si es admin y dentro de 48hrs
+  const puedeReg = ROLES_ADMIN.includes(S.rol) && puedeRegularizar(r.hora_registro);
+  document.getElementById('modal-regularizar').style.display = puedeReg ? 'block' : 'none';
+
+  document.getElementById('modal-marca').classList.add('open');
+}
+
+function puedeRegularizar(fechaHora){
+  const marca = new Date(fechaHora);
+  const limite = new Date(marca.getTime() + 48*60*60*1000);
+  return new Date() <= limite;
+}
+
+async function guardarRegularizacion(){
+  const motivo = document.getElementById('reg-motivo').value.trim();
+  const estado = document.getElementById('reg-estado').value;
+  if(!motivo){ showToast('Ingresa el motivo','warn'); return; }
+
+  const { error } = await sb.from('asistencia').update({
+    estado_registro:       estado,
+    motivo_regularizacion: motivo,
+    regularizado_por:      S.userId || null,
+    regularizado_at:       new Date().toISOString(),
+  }).eq('id', S.marcaEditando.id);
+
+  if(error){ showToast('Error: '+error.message,'err'); return; }
+  showToast('✓ Regularización guardada','ok');
+  cerrarModal();
+  cargarListaAsistencia();
+}
+
+// ═══════════════════════════════════════════════════════
+//  LUGARES DE ENSAYO
+// ═══════════════════════════════════════════════════════
+let S_lugares = []; // cache de lugares
+
+async function cargarLugares(){
+  const { data } = await sb.from('lugares_ensayo')
+    .select('*')
+    .eq('filial_id', S.filialId || 'bb000001-bb00-bb00-bb00-bb0000000001')
+    .eq('activo', true)
+    .order('nombre');
+
+  if(!data || data.length === 0) return;
+  S_lugares = data;
+
+  const sel = document.getElementById('cfg-lugar-sel');
+  if(!sel) return;
+
+  // Limpiar opciones existentes (mantener las dos primeras)
+  while(sel.options.length > 2) sel.remove(2);
+
+  // Insertar antes de "Otro lugar"
+  data.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l.id;
+    opt.textContent = `${l.nombre} — ${l.direccion||''}`;
+    sel.insertBefore(opt, sel.options[1]);
+  });
+}
+
+function seleccionarLugar(val){
+  const customDiv = document.getElementById('cfg-lugar-custom');
+  const infoDiv   = document.getElementById('cfg-lugar-info');
+  const infoTxt   = document.getElementById('cfg-lugar-info-txt');
+
+  if(val === 'custom' || val === ''){
+    customDiv.style.display = val === 'custom' ? 'block' : 'none';
+    infoDiv.style.display   = 'none';
+    document.getElementById('cfg-radio').value = 150;
+    return;
+  }
+
+  customDiv.style.display = 'none';
+
+  const lugar = S_lugares.find(l => l.id === val);
+  if(lugar){
+    infoDiv.style.display = 'block';
+    infoTxt.textContent = `📍 ${lugar.nombre} · Radio: ${lugar.radio_metros}m`;
+    document.getElementById('cfg-radio').value = lugar.radio_metros || 150;
+    // Guardar coords en state para usarlas al crear
+    S.lugarSeleccionado = lugar;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  PANEL ADMIN: CREAR ENSAYO Y QR
+// ═══════════════════════════════════════════════════════
+async function cargarAdminPanel(){
+  const el = document.getElementById('admin-ensayo-activo');
+  const hoy = new Date().toISOString().split('T')[0];
+  await cargarLugares(); // cargar selector de lugares
+  const { data } = await sb.from('ensayos')
+    .select('*').eq('fecha',hoy).eq('estado','activo')
+    .order('created_at',{ascending:false}).limit(1);
+
+  if(data && data.length > 0){
+    S.ensayo = data[0];
+    el.innerHTML = `
+      <div class="ensayo-header">
+        <div class="ensayo-label">ENSAYO ACTIVO HOY</div>
+        <div class="ensayo-nombre">${data[0].nombre}</div>
+        <div class="ensayo-meta">${data[0].lugar||'—'} · ${data[0].hora_inicio||'sin hora'}</div>
+        <div class="ensayo-badges">
+          <span class="b b-ok">Activo</span>
+          ${data[0].requiere_selfie?'<span class="b b-info">📸 Selfie</span>':''}
+          ${data[0].lat_referencia?'<span class="b b-info">📍 GPS</span>':''}
+        </div>
+      </div>`;
+    document.getElementById('qr-admin-section').style.display = 'block';
+    // Ocultar form de crear cuando ya hay ensayo activo
+    const crearSec = document.getElementById('crear-ensayo-section');
+    if(crearSec) crearSec.style.display = 'none';
+    iniciarQRAdmin();
+    generarLinkDirecto();
+  } else {
+    el.innerHTML = `<div class="alert alert-warn"><div class="alert-t">Sin ensayo activo</div>Crea uno abajo para habilitar la marcación.</div>`;
+    // Pre-llenar fecha de hoy y mostrar formulario
+    document.getElementById('cfg-fecha').value = hoy;
+    const crearSec = document.getElementById('crear-ensayo-section');
+    if(crearSec) crearSec.style.display = 'block';
+  }
+}
+
+async function crearEnsayo(){
+  const nombre   = document.getElementById('cfg-nombre').value.trim();
+  const tipo     = document.getElementById('cfg-tipo').value;
+  const fecha    = document.getElementById('cfg-fecha').value;
+  const horaIni  = document.getElementById('cfg-hora-inicio').value;
+  const tardanza = parseInt(document.getElementById('cfg-tardanza').value)||15;
+  const ventIni  = document.getElementById('cfg-ventana-ini').value;
+  const ventFin  = document.getElementById('cfg-ventana-fin').value;
+  const lugar    = document.getElementById('cfg-lugar').value.trim();
+  const esperados= parseInt(document.getElementById('cfg-esperados').value)||null;
+  const radio    = parseInt(document.getElementById('cfg-radio').value)||200;
+  const selfie   = document.getElementById('cfg-selfie').checked;
+  const usaGPS   = document.getElementById('cfg-gps').checked;
+
+  if(!nombre){ showToast('Ingresa un nombre para el ensayo','warn'); return; }
+  if(!fecha)  { showToast('Selecciona la fecha','warn'); return; }
+
+  // Usar coordenadas del lugar seleccionado, o capturar GPS actual
+  let latRef=null, lngRef=null, lugarNombre=null;
+  const lugarSel = document.getElementById('cfg-lugar-sel').value;
+
+  if(lugarSel && lugarSel !== 'custom' && S.lugarSeleccionado){
+    latRef = S.lugarSeleccionado.lat;
+    lngRef = S.lugarSeleccionado.lng;
+    lugarNombre = S.lugarSeleccionado.nombre;
+  } else if(usaGPS && navigator.geolocation){
+    showToast('Capturando ubicación de referencia...','info');
+    await new Promise(res=>{
+      navigator.geolocation.getCurrentPosition(
+        pos=>{ latRef=pos.coords.latitude; lngRef=pos.coords.longitude; res(); },
+        ()=>res(), {timeout:8000}
+      );
+    });
+    lugarNombre = document.getElementById('cfg-lugar')?.value || null;
+  }
+
+  const link = generarTokenLink();
+
+  const { error } = await sb.from('ensayos').insert({
+    filial_id:        S.filialId || S.ensayo?.filial_id || null,
+    nombre, tipo, fecha,
+    hora_inicio:      horaIni||null,
+    minutos_tardanza: tardanza,
+    ventana_inicio:   ventIni||null,
+    ventana_fin:      ventFin||null,
+    lugar:            lugarNombre || lugar || null,
+    esperados,
+    radio_metros:     radio,
+    requiere_selfie:  selfie,
+    lat_referencia:   latRef,
+    lng_referencia:   lngRef,
+    link_directo:     link,
+    estado:           'activo',
+    creado_por:       S.userId||null,
+  });
+
+  if(error){ showToast('Error: '+error.message,'err'); return; }
+  showToast('✓ Ensayo creado y activo','ok');
+  setTimeout(()=>cargarAdminPanel(), 500);
+}
+
+async function cerrarEnsayo(){
+  if(!S.ensayo){ return; }
+  if(!confirm('¿Cerrar el ensayo? Ya no se podrán registrar más marcas.')) return;
+  await sb.from('ensayos').update({estado:'cerrado'}).eq('id',S.ensayo.id);
+  showToast('🔒 Ensayo cerrado','ok');
+  clearInterval(S.timerInterval);
+  document.getElementById('qr-admin-section').style.display='none';
+  S.ensayo = null;
+  cargarAdminPanel();
+}
+
+// ═══════════════════════════════════════════════════════
+//  QR DINÁMICO (ADMIN)
+// ═══════════════════════════════════════════════════════
+function iniciarQRAdmin(){
+  generarQR();
+  S.timerSecs = QR_DURACION;
+  clearInterval(S.timerInterval);
+  S.timerInterval = setInterval(()=>{
+    S.timerSecs--;
+    const num = document.getElementById('timer-num');
+    const arc = document.getElementById('timer-arc');
+    if(num) num.textContent = S.timerSecs;
+    if(arc){
+      arc.style.strokeDashoffset = CIRC*(1-S.timerSecs/QR_DURACION);
+      arc.style.stroke = S.timerSecs<=7 ? '#FF3B5C' : '#F5A623';
+    }
+    if(S.timerSecs<=0){
+      generarQR();
+      S.timerSecs = QR_DURACION;
+      if(arc){ arc.style.strokeDashoffset=0; arc.style.stroke='#F5A623'; }
+    }
+  },1000);
+}
+
+function generarQR(){
+  const ts   = Math.floor(Date.now()/1000);
+  const rand = Math.random().toString(36).slice(2,8).toUpperCase();
+  const eid  = S.ensayo?.id?.slice(0,8)||'NOEID';
+  S.tokenActual = `CAP:${ts}:${rand}:${eid}`;
+
+  // Actualizar token en BD
+  if(S.ensayo){
+    sb.from('ensayos').update({
+      token_activo: S.tokenActual,
+      token_expira_at: new Date(Date.now()+QR_DURACION*1000).toISOString()
+    }).eq('id',S.ensayo.id).then(()=>{});
+  }
+
+  const c = document.getElementById('qrcode-admin');
+  if(!c) return;
+  c.innerHTML='';
+  new QRCode(c,{ text:S.tokenActual, width:200, height:200,
+    colorDark:'#0A0A0A', colorLight:'#FFFFFF', correctLevel:QRCode.CorrectLevel.H });
+}
+
+function generarTokenLink(){
+  return Math.random().toString(36).slice(2,12).toUpperCase();
+}
+
+function generarLinkDirecto(){
+  if(!S.ensayo?.link_directo) return;
+  const url = `https://controlasistencia-mu.vercel.app/inicio.html?e=${S.ensayo.link_directo}`;
+  document.getElementById('link-directo-url').textContent = url;
+}
+
+function copiarLink(){
+  const url = document.getElementById('link-directo-url').textContent;
+  navigator.clipboard.writeText(url).then(()=>showToast('✓ Link copiado','ok'));
+}
+
+// ═══════════════════════════════════════════════════════
+//  EXPORTAR
+// ═══════════════════════════════════════════════════════
+function exportarLista(){
+  if(!S.listaRegistros.length){ showToast('Sin registros','warn'); return; }
+  const header = `ASISTENCIA · ${S.ensayo?.nombre||''}\nFecha: ${S.ensayo?.fecha||''}\n\n`;
+  const filas = S.listaRegistros.map((r,i)=>{
+    const p = r.personas;
+    const nombre = p?`${p.apellidos} ${p.nombres}`:'Aspirante';
+    const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+    return `${i+1}\t${nombre}\t${p?.figura||''}\t${r.estado_registro}\t${hora}${r.distancia_metros?'\t'+r.distancia_metros+'m':''}`;
+  }).join('\n');
+  const blob = new Blob([header+`N°\tNombre\tFigura\tEstado\tHora\tDistancia\n`+filas],{type:'text/plain'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=`asistencia_${S.ensayo?.fecha||'hoy'}.tsv`;
+  a.click();
+  showToast('✓ Lista exportada','ok');
+}
+
+// ═══════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════
+function mostrarPaso(id){
+  document.querySelectorAll('#tab-marcar .step').forEach(s=>s.style.display='none');
+  const el = document.getElementById(id);
+  if(el) el.style.display='block';
+}
+
+function volverDNI(){
+  S.persona=null; S.gps=null; S.gpsOk=false;
+  S.selfieBlob=null; S.selfieOk=false;
+  S.tipoAsistencia=null; S.motivo_pendiente=null; S.tokenActual='';
+  if(S.camStream){ S.camStream.getTracks().forEach(t=>t.stop()); S.camStream=null; }
+  document.getElementById('inp-dni').value='';
+  document.getElementById('alertas-container').innerHTML='';
+  document.getElementById('selfie-section').style.display='none';
+  document.getElementById('selfie-preview').style.display='none';
+  document.getElementById('cam-wrap').style.display='block';
+  document.getElementById('btn-capturar').style.display='flex';
+  document.getElementById('btn-repetir').style.display='none';
+  ocultarErrDNI();
+  mostrarPaso('paso-dni');
+}
+
+function mostrarError(msg){
+  document.getElementById('paso-sin-ensayo').style.display='block';
+  document.getElementById('paso-sin-ensayo').innerHTML=`
+    <div class="empty"><div class="ico">⚠️</div><p>${msg}</p></div>`;
+}
+
+function setLoader(v){
+  document.getElementById('loader-dni').style.display=v?'flex':'none';
+  document.getElementById('btn-buscar').disabled=v;
+}
+
+function mostrarErrDNI(msg){
+  document.getElementById('err-dni').style.display='block';
+  document.getElementById('err-dni-txt').textContent=msg;
+}
+
+function ocultarErrDNI(){
+  document.getElementById('err-dni').style.display='none';
+}
+
+function cerrarModal(){
+  document.getElementById('modal-marca').classList.remove('open');
+}
+
+document.getElementById('modal-marca').addEventListener('click',e=>{
+  if(e.target===e.currentTarget) cerrarModal();
+});
+
+function showToast(msg,tipo='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast toast-${tipo} show`;
+  setTimeout(()=>t.classList.remove('show'),3400);
+}
+
+function estadoBadge(estado){
+  const m={activo:'b-ok',aspirante:'b-warn',inactivo:'b-gray',exintegrante:'b-err'};
+  return `<span class="b ${m[estado]||'b-gray'}">${estado||'—'}</span>`;
+}
+
+function estadoBadgeAsist(estado){
+  const m={confirmado:'b-ok',tardanza:'b-orange',pendiente_jd:'b-warn',
+    rechazado:'b-err',aspirante:'b-lila',licencia:'b-info'};
+  const l={confirmado:'✅ Confirmado',tardanza:'⏰ Tardanza',
+    pendiente_jd:'⏳ Pendiente JD',rechazado:'❌ Rechazado',
+    aspirante:'🆕 Aspirante',licencia:'📋 Licencia'};
+  return `<span class="b ${m[estado]||'b-gray'}">${l[estado]||estado}</span>`;
+}
+
+function calcEdad(fnac){
+  if(!fnac) return null;
+  const hoy=new Date(),n=new Date(fnac);
+  let e=hoy.getFullYear()-n.getFullYear();
+  if(hoy<new Date(hoy.getFullYear(),n.getMonth(),n.getDate())) e--;
+  return e;
+}
+
+function esCumpleaños(fnac){
+  if(!fnac) return false;
+  const hoy=new Date(), n=new Date(fnac);
+  return hoy.getMonth()===n.getMonth() && hoy.getDate()===n.getDate();
+}
+
+function mesesDesde(fecha){
+  if(!fecha) return null;
+  const d=new Date(fecha),h=new Date();
+  return (h.getFullYear()-d.getFullYear())*12+(h.getMonth()-d.getMonth());
+}
+
+// Enter en DNI
+document.getElementById('inp-dni').addEventListener('keydown',e=>{
+  if(e.key==='Enter') buscarDNI();
+});
+</script>
+</body>
+</html>
