@@ -555,7 +555,70 @@ body::before{content:'';position:fixed;inset:0;
 
 
     </div><!-- /crear-ensayo-section -->
+
+    <!-- Historial de ensayos con edición -->
+    <div id="historial-ensayos-section" style="margin-top:4px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;
+        color:var(--d);margin:20px 0 12px;display:flex;align-items:center;gap:8px">
+        📋 ENSAYOS RECIENTES
+        <div style="flex:1;height:1px;background:rgba(245,166,35,.13)"></div>
+        <button class="btn btn-g btn-sm" onclick="cargarHistorialEnsayos()" style="margin-bottom:0;font-size:10px">
+          🔄 Actualizar
+        </button>
+      </div>
+      <div id="lista-historial-ensayos">
+        <div class="loader"><div class="spin"></div> Cargando...</div>
+      </div>
+    </div>
+
   </div><!-- /tab-admin -->
+
+  <!-- Modal editar ensayo -->
+  <div class="modal-bg" id="modal-editar-ensayo">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title" id="mee-title">Editar Ensayo</div>
+      <div id="mee-alerta-marcaciones" style="display:none" class="alert alert-warn">
+        <div class="alert-t">⚠️ Tiene marcaciones registradas</div>
+        Solo puedes editar los datos del ensayo. Para eliminarlo usa "Marcar como nulo".
+      </div>
+      <div class="f"><label>Nombre</label><input type="text" id="mee-nombre"></div>
+      <div class="f-row">
+        <div class="f"><label>Tipo</label>
+          <select id="mee-tipo">
+            <option value="regular">Regular</option>
+            <option value="extra">Extra</option>
+            <option value="coreografia">Coreografía</option>
+          </select>
+        </div>
+        <div class="f"><label>Fecha</label><input type="date" id="mee-fecha"></div>
+      </div>
+      <div class="f-row">
+        <div class="f"><label>Hora inicio</label><input type="time" id="mee-hora"></div>
+        <div class="f"><label>Min. tardanza</label><input type="number" id="mee-tardanza" min="1" max="60"></div>
+      </div>
+      <div class="f"><label>Lugar</label><input type="text" id="mee-lugar"></div>
+      <div class="f"><label>Integrantes esperados</label><input type="number" id="mee-esperados" min="1"></div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <input type="checkbox" id="mee-selfie" style="width:auto;cursor:pointer">
+        <label for="mee-selfie" style="font-size:13px;cursor:pointer;color:var(--w)">Requerir selfie</label>
+      </div>
+      <button class="btn btn-d" onclick="guardarEdicionEnsayo()">💾 Guardar cambios</button>
+      <div id="mee-btn-eliminar-wrap">
+        <button class="btn btn-sm" onclick="eliminarEnsayo()" id="mee-btn-eliminar"
+          style="background:rgba(200,16,46,.15);color:#FF8099;border:1px solid rgba(200,16,46,.25);width:100%;margin-bottom:8px">
+          🗑️ Eliminar ensayo
+        </button>
+      </div>
+      <div id="mee-btn-nulo-wrap" style="display:none">
+        <button class="btn btn-sm" onclick="marcarEnsayoNulo()"
+          style="background:rgba(200,16,46,.15);color:#FF8099;border:1px solid rgba(200,16,46,.25);width:100%;margin-bottom:8px">
+          🚫 Marcar como nulo
+        </button>
+      </div>
+      <button class="btn btn-g" onclick="cerrarModalEditarEnsayo()">Cancelar</button>
+    </div>
+  </div>
 
 </div><!-- /page -->
 
@@ -751,7 +814,7 @@ function configurarTabs(){
         document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('on'));
         btnAdmin.classList.add('on');
       }
-      cargarAdminPanel();
+      cargarAdminPanel().then(()=> cargarHistorialEnsayos());
     }, 100);
   } else {
     // Acceso normal
@@ -787,6 +850,7 @@ function setTab(tab, btn){
         const crearSec = document.getElementById('crear-ensayo-section');
         if(crearSec) crearSec.style.display = 'none';
       }
+      cargarHistorialEnsayos();
     });
   }
 }
@@ -1915,6 +1979,7 @@ async function cargarEnsayosParaDescarga(){
 
   const filialId = S.filialId || 'bb000001-bb00-bb00-bb00-bb0000000001';
   let q = sb.from('ensayos').select('id,nombre,fecha,tipo,estado,esperados')
+    .neq('estado','nulo') // excluir ensayos nulos de las descargas
     .order('fecha',{ascending:false});
   
   // Coordinador solo ve su filial
@@ -2049,6 +2114,176 @@ async function descargarAsistenciaSeleccionada(){
   URL.revokeObjectURL(url);
   showToast(`✓ ${data.length} registros descargados`,'ok');
   cerrarModalDescarga();
+}
+
+// ═══════════════════════════════════════════════════════
+//  HISTORIAL DE ENSAYOS — EDICIÓN Y ELIMINACIÓN
+// ═══════════════════════════════════════════════════════
+let S_ensayoEditando = null;
+
+async function cargarHistorialEnsayos(){
+  const el = document.getElementById('lista-historial-ensayos');
+  if(!el) return;
+  el.innerHTML = '<div class="loader"><div class="spin"></div> Cargando...</div>';
+
+  const filialId = S.filialId || 'bb000001-bb00-bb00-bb00-bb0000000001';
+  let q = sb.from('ensayos')
+    .select('id,nombre,fecha,tipo,estado,hora_inicio,lugar,esperados,requiere_selfie')
+    .neq('estado','nulo') // excluir nulos del listado admin también
+    .order('fecha',{ascending:false})
+    .limit(20);
+
+  if(!['super_admin','admin_nacional','JDN_miembro'].includes(S.rol)){
+    q = q.eq('filial_id', filialId);
+  }
+
+  const { data, error } = await q;
+  if(error){ el.innerHTML=`<div class="alert alert-err">${error.message}</div>`; return; }
+  if(!data || data.length === 0){
+    el.innerHTML='<div class="empty"><p>Sin ensayos registrados</p></div>'; return;
+  }
+
+  const estadoColor = {activo:'b-ok',cerrado:'b-gray',cancelado:'b-err',nulo:'b-err'};
+  el.innerHTML = data.map(e=>`
+    <div class="att-item" style="cursor:pointer" onclick="abrirEditarEnsayo('${e.id}')">
+      <div style="flex:1;min-width:0">
+        <div class="att-name">${e.nombre}</div>
+        <div class="att-meta">${formatFecha(e.fecha)} · ${e.tipo} · ${e.lugar||'—'}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <span class="b ${estadoColor[e.estado]||'b-gray'}">${e.estado}</span>
+        <span style="font-size:10px;color:var(--w3)">${e.esperados?e.esperados+' esp.':''}</span>
+      </div>
+    </div>`).join('');
+}
+
+async function abrirEditarEnsayo(id){
+  // Buscar ensayo
+  const { data: ensayo } = await sb.from('ensayos').select('*').eq('id',id).single();
+  if(!ensayo) return;
+
+  // Verificar si tiene marcaciones
+  const { count } = await sb.from('asistencia')
+    .select('id',{count:'exact',head:true})
+    .eq('ensayo_id', id);
+
+  S_ensayoEditando = { ...ensayo, tieneMarcaciones: count > 0 };
+
+  // Llenar modal
+  document.getElementById('mee-title').textContent = ensayo.nombre;
+  document.getElementById('mee-nombre').value    = ensayo.nombre || '';
+  document.getElementById('mee-tipo').value      = ensayo.tipo || 'regular';
+  document.getElementById('mee-fecha').value     = ensayo.fecha || '';
+  document.getElementById('mee-hora').value      = ensayo.hora_inicio || '';
+  document.getElementById('mee-tardanza').value  = ensayo.minutos_tardanza || 15;
+  document.getElementById('mee-lugar').value     = ensayo.lugar || '';
+  document.getElementById('mee-esperados').value = ensayo.esperados || '';
+  document.getElementById('mee-selfie').checked  = ensayo.requiere_selfie || false;
+
+  // Si está cerrado, deshabilitar edición
+  const esCerrado = ensayo.estado === 'cerrado';
+  ['mee-nombre','mee-tipo','mee-fecha','mee-hora','mee-tardanza',
+   'mee-lugar','mee-esperados','mee-selfie'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.disabled = esCerrado;
+  });
+
+  // Mostrar alertas y botones según estado
+  const alertaMarcaciones = document.getElementById('mee-alerta-marcaciones');
+  const btnEliminarWrap   = document.getElementById('mee-btn-eliminar-wrap');
+  const btnNuloWrap       = document.getElementById('mee-btn-nulo-wrap');
+
+  if(count > 0){
+    alertaMarcaciones.style.display = 'block';
+    btnEliminarWrap.style.display   = 'none';
+    btnNuloWrap.style.display       = esCerrado ? 'none' : 'block';
+  } else {
+    alertaMarcaciones.style.display = 'none';
+    btnEliminarWrap.style.display   = esCerrado ? 'none' : 'block';
+    btnNuloWrap.style.display       = 'none';
+  }
+
+  // Si está cerrado, ocultar todos los botones de acción
+  if(esCerrado){
+    btnEliminarWrap.style.display = 'none';
+    btnNuloWrap.style.display     = 'none';
+  }
+
+  document.getElementById('modal-editar-ensayo').classList.add('open');
+}
+
+function cerrarModalEditarEnsayo(){
+  document.getElementById('modal-editar-ensayo').classList.remove('open');
+  S_ensayoEditando = null;
+}
+
+document.getElementById('modal-editar-ensayo').addEventListener('click',e=>{
+  if(e.target===e.currentTarget) cerrarModalEditarEnsayo();
+});
+
+async function guardarEdicionEnsayo(){
+  if(!S_ensayoEditando) return;
+
+  const datos = {
+    nombre:           document.getElementById('mee-nombre').value.trim(),
+    tipo:             document.getElementById('mee-tipo').value,
+    fecha:            document.getElementById('mee-fecha').value,
+    hora_inicio:      document.getElementById('mee-hora').value || null,
+    minutos_tardanza: parseInt(document.getElementById('mee-tardanza').value) || 15,
+    lugar:            document.getElementById('mee-lugar').value.trim() || null,
+    esperados:        parseInt(document.getElementById('mee-esperados').value) || null,
+    requiere_selfie:  document.getElementById('mee-selfie').checked,
+  };
+
+  if(!datos.nombre){ showToast('El nombre es obligatorio','warn'); return; }
+
+  const { error } = await sb.from('ensayos').update(datos).eq('id', S_ensayoEditando.id);
+  if(error){ showToast('Error: '+error.message,'err'); return; }
+
+  showToast('✓ Ensayo actualizado','ok');
+  cerrarModalEditarEnsayo();
+  cargarHistorialEnsayos();
+  if(S.ensayo?.id === S_ensayoEditando.id) cargarAdminPanel();
+}
+
+async function eliminarEnsayo(){
+  if(!S_ensayoEditando) return;
+  if(!confirm('¿Eliminar este ensayo? Esta acción no se puede deshacer.')) return;
+
+  const { error } = await sb.from('ensayos').delete().eq('id', S_ensayoEditando.id);
+  if(error){ showToast('Error: '+error.message,'err'); return; }
+
+  showToast('🗑️ Ensayo eliminado','ok');
+  cerrarModalEditarEnsayo();
+  cargarHistorialEnsayos();
+  if(S.ensayo?.id === S_ensayoEditando.id){
+    S.ensayo = null;
+    clearInterval(S.timerInterval);
+    document.getElementById('qr-admin-section').style.display = 'none';
+    const crearSec = document.getElementById('crear-ensayo-section');
+    if(crearSec) crearSec.style.display = 'block';
+  }
+}
+
+async function marcarEnsayoNulo(){
+  if(!S_ensayoEditando) return;
+  if(!confirm('¿Marcar como nulo? El ensayo quedará en historial pero sus registros no contarán y no aparecerá en descargas.')) return;
+
+  const { error } = await sb.from('ensayos')
+    .update({estado:'nulo'})
+    .eq('id', S_ensayoEditando.id);
+  if(error){ showToast('Error: '+error.message,'err'); return; }
+
+  showToast('🚫 Ensayo marcado como nulo','warn');
+  cerrarModalEditarEnsayo();
+  cargarHistorialEnsayos();
+  if(S.ensayo?.id === S_ensayoEditando.id){
+    S.ensayo = null;
+    clearInterval(S.timerInterval);
+    document.getElementById('qr-admin-section').style.display = 'none';
+    const crearSec = document.getElementById('crear-ensayo-section');
+    if(crearSec) crearSec.style.display = 'block';
+  }
 }
 
 // Enter en DNI
