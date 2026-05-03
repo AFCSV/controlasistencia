@@ -704,9 +704,11 @@ window.addEventListener('load', async () => {
 
   // Si viene con DNI pre-cargado (desde gestion.html)
   const dniParam = params.get('dni');
-  if(dniParam){
-    S.dniPreCargado = dniParam;
-  }
+  if(dniParam) S.dniPreCargado = dniParam;
+
+  // modo=gestion → no mostrar tab Marcar, solo Lista y Gestión
+  const modoParam = params.get('modo');
+  if(modoParam === 'gestion') S.modoGestion = true;
 
   // Configurar tabs según rol
   configurarTabs();
@@ -729,15 +731,37 @@ window.addEventListener('load', async () => {
 
 function configurarTabs(){
   const esAdmin = ROLES_ADMIN.includes(S.rol);
-  // Mostrar/ocultar botones de tab
-  document.getElementById('tab-lista').style.display = esAdmin ? 'block' : 'none';
-  document.getElementById('tab-admin').style.display = esAdmin ? 'block' : 'none';
-  // Si no es admin, ocultar el contenedor de tabs (solo ve marcar)
-  document.getElementById('tabs-container').style.display = esAdmin ? 'flex' : 'none';
-  // Los divs de contenido de lista y admin empiezan ocultos siempre
-  document.getElementById('tab-lista-content').style.display = 'none';
-  document.getElementById('tab-admin-content').style.display = 'none';
-  document.getElementById('tab-marcar-content').style.display = 'block';
+
+  if(S.modoGestion && esAdmin){
+    // Viene de gestion.html → solo Lista y Gestión, sin Marcar
+    document.getElementById('tab-lista').style.display = 'block';
+    document.getElementById('tab-admin').style.display = 'block';
+    document.getElementById('tabs-container').style.display = 'flex';
+    // Ocultar botón Marcar
+    const btnMarcar = document.getElementById('btn-tab-marcar');
+    if(btnMarcar) btnMarcar.style.display = 'none';
+    // Mostrar Gestión por defecto
+    document.getElementById('tab-lista-content').style.display = 'none';
+    document.getElementById('tab-admin-content').style.display = 'block';
+    document.getElementById('tab-marcar-content').style.display = 'none';
+    // Activar tab Gestión
+    setTimeout(()=>{
+      const btnAdmin = document.querySelector('.tab[onclick*="admin"]');
+      if(btnAdmin){ 
+        document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('on'));
+        btnAdmin.classList.add('on');
+      }
+      cargarAdminPanel();
+    }, 100);
+  } else {
+    // Acceso normal
+    document.getElementById('tab-lista').style.display = esAdmin ? 'block' : 'none';
+    document.getElementById('tab-admin').style.display = esAdmin ? 'block' : 'none';
+    document.getElementById('tabs-container').style.display = esAdmin ? 'flex' : 'none';
+    document.getElementById('tab-lista-content').style.display = 'none';
+    document.getElementById('tab-admin-content').style.display = 'none';
+    document.getElementById('tab-marcar-content').style.display = 'block';
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -754,7 +778,17 @@ function setTab(tab, btn){
   const target = document.getElementById(`tab-${tab}-content`);
   if(target) target.style.display = 'block';
   if(tab === 'lista') cargarListaAsistencia();
-  if(tab === 'admin') cargarAdminPanel();
+  if(tab === 'admin'){
+    cargarAdminPanel().then(()=>{
+      // Re-forzar visibilidad tras cargar
+      if(S.ensayo){
+        const qrSec = document.getElementById('qr-admin-section');
+        if(qrSec) qrSec.style.display = 'block';
+        const crearSec = document.getElementById('crear-ensayo-section');
+        if(crearSec) crearSec.style.display = 'none';
+      }
+    });
+  }
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1506,6 +1540,14 @@ async function cargarAdminPanel(){
           ${data[0].lat_referencia?'<span class="b b-info">📍 GPS</span>':''}
         </div>
       </div>`;
+    // Asegurar visibilidad del tab y secciones
+    const tabAdmin = document.getElementById('tab-admin-content');
+    if(tabAdmin && tabAdmin.style.display !== 'none'){
+      document.getElementById('qr-admin-section').style.display = 'block';
+    } else {
+      // Guardar para cuando se abra el tab
+      S.ensayoActivo = data[0];
+    }
     document.getElementById('qr-admin-section').style.display = 'block';
     // Ocultar form de crear cuando ya hay ensayo activo
     const crearSec = document.getElementById('crear-ensayo-section');
