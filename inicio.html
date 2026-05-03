@@ -475,7 +475,11 @@ body::before{content:'';position:fixed;inset:0;
       </div>
       <div style="display:flex;gap:8px;margin-top:4px;flex-wrap:wrap">
         <button class="btn btn-g btn-sm" onclick="cerrarEnsayo()" style="flex:1">🔒 Cerrar ensayo</button>
-        <button class="btn btn-info btn-sm" onclick="exportarLista()" style="flex:1">📋 Exportar lista</button>
+        <button class="btn btn-info btn-sm" onclick="exportarLista()" style="flex:1">📋 Lista hoy</button>
+        <button class="btn btn-sm" onclick="abrirModalDescarga()"
+          style="flex:1;background:rgba(52,211,153,.15);color:#34D399;border:1px solid rgba(52,211,153,.25);margin-bottom:0">
+          📥 Historial
+        </button>
         <button class="btn btn-sm" onclick="cancelarEnsayo()" 
           style="flex:1;background:rgba(200,16,46,.15);color:#FF8099;border:1px solid rgba(200,16,46,.25);margin-bottom:0">
           🗑️ Cancelar ensayo
@@ -554,6 +558,61 @@ body::before{content:'';position:fixed;inset:0;
   </div><!-- /tab-admin -->
 
 </div><!-- /page -->
+
+<!-- ── MODAL: Mensaje WhatsApp ── -->
+<div class="modal-bg" id="modal-wsp">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📱 Compartir por WhatsApp</div>
+    <div style="font-size:12px;color:var(--w3);margin-bottom:12px">
+      Copia este mensaje y pégalo en el grupo de WhatsApp de tu bloque.
+    </div>
+    <div id="wsp-preview" style="background:var(--g3);border:1px solid var(--bd);
+      border-radius:var(--rb);padding:14px;font-size:13px;line-height:1.8;
+      white-space:pre-wrap;word-break:break-word;max-height:280px;overflow-y:auto;
+      color:var(--w2);margin-bottom:14px"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-d btn-sm" onclick="copiarMensajeWsp()" style="flex:1;margin-bottom:0">
+        📋 Copiar mensaje
+      </button>
+      <button class="btn btn-g btn-sm" onclick="abrirWhatsApp()" style="flex:1;margin-bottom:0">
+        💬 Abrir WhatsApp
+      </button>
+    </div>
+    <button class="btn btn-g" onclick="cerrarModalWsp()" style="margin-top:8px">Cerrar</button>
+  </div>
+</div>
+
+<!-- ── MODAL: Descargar asistencia ── -->
+<div class="modal-bg" id="modal-descarga">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📥 Descargar Asistencia</div>
+    <div style="font-size:12px;color:var(--w3);margin-bottom:14px">
+      Selecciona los ensayos que quieres incluir en el reporte.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn btn-g btn-sm" onclick="selTodosEnsayos()" style="margin-bottom:0">☑️ Todos</button>
+      <button class="btn btn-g btn-sm" onclick="deselTodosEnsayos()" style="margin-bottom:0">☐ Ninguno</button>
+      <select id="filtro-mes-descarga" onchange="filtrarEnsayosDescarga()"
+        style="background:var(--g3);border:1px solid var(--bd);color:var(--w);
+        border-radius:8px;padding:6px 10px;font-size:12px;outline:none">
+        <option value="">Todos los meses</option>
+      </select>
+    </div>
+    <div id="lista-ensayos-descarga" style="max-height:280px;overflow-y:auto;margin-bottom:14px">
+      <div class="loader"><div class="spin"></div> Cargando...</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-d btn-sm" onclick="descargarAsistenciaSeleccionada()" 
+        style="flex:1;margin-bottom:0" id="btn-descargar-asist">
+        📥 Descargar CSV
+      </button>
+      <button class="btn btn-g btn-sm" onclick="cerrarModalDescarga()" 
+        style="flex:1;margin-bottom:0">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── MODAL: Detalle de marca ── -->
 <div class="modal-bg" id="modal-marca">
@@ -1504,6 +1563,34 @@ async function crearEnsayo(){
 
   if(error){ showToast('Error: '+error.message,'err'); return; }
   showToast('✓ Ensayo creado y activo','ok');
+
+  // Generar mensaje WhatsApp listo para compartir
+  const fechaTexto = new Date(fecha+'T00:00:00').toLocaleDateString('es-PE',
+    {weekday:'long',day:'numeric',month:'long'});
+  const linkEnsayo = `https://asistencia.bloqueindomables.site/inicio.html?e=${link}`;
+  const msgWsp = `🦅 *ENSAYO CAPORALES SAN VALENTÍN*
+
+`+
+    `📋 *${nombre}*
+`+
+    `📅 ${fechaTexto}
+`+
+    `⏰ ${horaIni ? horaIni + ' hrs' : 'Ver convocatoria'}
+`+
+    `📍 ${lugarNombre || 'Ver convocatoria'}
+
+`+
+    `✅ *Marca tu asistencia aquí:*
+${linkEnsayo}
+
+`+
+    `⚠️ El link es válido solo para este ensayo.
+`+
+    `Ingresa tu DNI para registrarte.`;
+
+  // Mostrar modal con mensaje listo
+  mostrarMensajeWsp(msgWsp);
+
   setTimeout(()=>cargarAdminPanel(), 500);
 }
 
@@ -1704,6 +1791,198 @@ function mesesDesde(fecha){
   if(!fecha) return null;
   const d=new Date(fecha),h=new Date();
   return (h.getFullYear()-d.getFullYear())*12+(h.getMonth()-d.getMonth());
+}
+
+// ═══════════════════════════════════════════════════════
+//  MENSAJE WHATSAPP
+// ═══════════════════════════════════════════════════════
+let S_msgWsp = '';
+
+function mostrarMensajeWsp(msg){
+  S_msgWsp = msg;
+  document.getElementById('wsp-preview').textContent = msg;
+  document.getElementById('modal-wsp').classList.add('open');
+}
+
+function copiarMensajeWsp(){
+  navigator.clipboard.writeText(S_msgWsp)
+    .then(()=>showToast('✓ Mensaje copiado','ok'))
+    .catch(()=>{
+      // Fallback para móviles
+      const el = document.createElement('textarea');
+      el.value = S_msgWsp;
+      document.body.appendChild(el);
+      el.select(); document.execCommand('copy');
+      document.body.removeChild(el);
+      showToast('✓ Mensaje copiado','ok');
+    });
+}
+
+function abrirWhatsApp(){
+  const encoded = encodeURIComponent(S_msgWsp);
+  window.open(`https://wa.me/?text=${encoded}`, '_blank');
+}
+
+function cerrarModalWsp(){
+  document.getElementById('modal-wsp').classList.remove('open');
+}
+
+document.getElementById('modal-wsp').addEventListener('click',e=>{
+  if(e.target===e.currentTarget) cerrarModalWsp();
+});
+
+// ═══════════════════════════════════════════════════════
+//  DESCARGA DE ASISTENCIA POR ENSAYOS
+// ═══════════════════════════════════════════════════════
+let S_ensayosDescarga = [];
+let S_ensayosSeleccionados = new Set();
+
+async function abrirModalDescarga(){
+  document.getElementById('modal-descarga').classList.add('open');
+  S_ensayosSeleccionados = new Set();
+  await cargarEnsayosParaDescarga();
+}
+
+function cerrarModalDescarga(){
+  document.getElementById('modal-descarga').classList.remove('open');
+}
+
+document.getElementById('modal-descarga').addEventListener('click',e=>{
+  if(e.target===e.currentTarget) cerrarModalDescarga();
+});
+
+async function cargarEnsayosParaDescarga(){
+  const el = document.getElementById('lista-ensayos-descarga');
+  el.innerHTML = '<div class="loader"><div class="spin"></div> Cargando...</div>';
+
+  const filialId = S.filialId || 'bb000001-bb00-bb00-bb00-bb0000000001';
+  let q = sb.from('ensayos').select('id,nombre,fecha,tipo,estado,esperados')
+    .order('fecha',{ascending:false});
+  
+  // Coordinador solo ve su filial
+  if(!['super_admin','admin_nacional'].includes(S.rol)){
+    q = q.eq('filial_id', filialId);
+  }
+
+  const { data } = await q;
+  S_ensayosDescarga = data || [];
+
+  // Poblar filtro de meses
+  const meses = [...new Set(S_ensayosDescarga.map(e=>e.fecha?.slice(0,7)))].sort().reverse();
+  const selMes = document.getElementById('filtro-mes-descarga');
+  selMes.innerHTML = '<option value="">Todos los meses</option>' +
+    meses.map(m=>`<option value="${m}">${formatMes(m)}</option>`).join('');
+
+  renderEnsayosDescarga(S_ensayosDescarga);
+}
+
+function formatMes(ym){
+  if(!ym) return '';
+  const [y,m] = ym.split('-');
+  const meses = ['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  return `${meses[parseInt(m)]} ${y}`;
+}
+
+function filtrarEnsayosDescarga(){
+  const mes = document.getElementById('filtro-mes-descarga').value;
+  const filtrados = mes
+    ? S_ensayosDescarga.filter(e=>e.fecha?.startsWith(mes))
+    : S_ensayosDescarga;
+  renderEnsayosDescarga(filtrados);
+}
+
+function renderEnsayosDescarga(lista){
+  const el = document.getElementById('lista-ensayos-descarga');
+  if(!lista.length){
+    el.innerHTML='<div class="empty"><p>Sin ensayos</p></div>'; return;
+  }
+  const estadoColor = {activo:'b-ok',cerrado:'b-gray',cancelado:'b-err'};
+  el.innerHTML = lista.map(e=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:9px 0;
+      border-bottom:1px solid var(--bd)">
+      <input type="checkbox" ${S_ensayosSeleccionados.has(e.id)?'checked':''}
+        onchange="toggleEnsayoDescarga('${e.id}',this.checked)"
+        style="width:16px;height:16px;cursor:pointer;accent-color:#F0C040;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          ${e.nombre}
+        </div>
+        <div style="font-size:10px;color:var(--w3);margin-top:2px">
+          ${formatFecha(e.fecha)} · ${e.tipo}
+        </div>
+      </div>
+      <span class="b ${estadoColor[e.estado]||'b-gray'}">${e.estado}</span>
+    </div>`).join('');
+}
+
+function toggleEnsayoDescarga(id, checked){
+  if(checked) S_ensayosSeleccionados.add(id);
+  else S_ensayosSeleccionados.delete(id);
+  const n = S_ensayosSeleccionados.size;
+  document.getElementById('btn-descargar-asist').textContent =
+    n > 0 ? `📥 Descargar CSV (${n} ensayo${n>1?'s':''})` : '📥 Descargar CSV';
+}
+
+function selTodosEnsayos(){
+  const mes = document.getElementById('filtro-mes-descarga').value;
+  const lista = mes ? S_ensayosDescarga.filter(e=>e.fecha?.startsWith(mes)) : S_ensayosDescarga;
+  lista.forEach(e=>S_ensayosSeleccionados.add(e.id));
+  renderEnsayosDescarga(lista);
+  document.getElementById('btn-descargar-asist').textContent =
+    `📥 Descargar CSV (${S_ensayosSeleccionados.size} ensayos)`;
+}
+
+function deselTodosEnsayos(){
+  S_ensayosSeleccionados.clear();
+  filtrarEnsayosDescarga();
+  document.getElementById('btn-descargar-asist').textContent = '📥 Descargar CSV';
+}
+
+async function descargarAsistenciaSeleccionada(){
+  if(S_ensayosSeleccionados.size === 0){
+    showToast('Selecciona al menos un ensayo','warn'); return;
+  }
+
+  showToast('Preparando reporte...','info');
+  const ids = Array.from(S_ensayosSeleccionados);
+
+  const { data } = await sb.from('asistencia')
+    .select('*, personas(nombres,apellidos,dni,figura,filiales!personas_filial_id_fkey(nombre)), ensayos(nombre,fecha,tipo)')
+    .in('ensayo_id', ids)
+    .order('ensayo_id')
+    .order('hora_registro');
+
+  if(!data || data.length === 0){
+    showToast('Sin registros para los ensayos seleccionados','warn'); return;
+  }
+
+  // Generar CSV
+  const header = 'Ensayo	Fecha	Tipo	Nombre	Apellidos	DNI	Figura	Filial	Estado	Hora	GPS	Distancia(m)
+';
+  const filas = data.map(r=>{
+    const p = r.personas;
+    const e = r.ensayos;
+    const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+    const gps = r.lat ? `${parseFloat(r.lat).toFixed(5)},${parseFloat(r.lng).toFixed(5)}` : '';
+    return [
+      e?.nombre||'', e?.fecha||'', e?.tipo||'',
+      p?.nombres||'', p?.apellidos||'', p?.dni||'',
+      p?.figura||'', p?.filiales?.nombre||'',
+      r.estado_registro, hora, gps, r.distancia_metros||''
+    ].join('	');
+  }).join('
+');
+
+  const blob = new Blob(['﻿'+header+filas], {type:'text/tab-separated-values;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const fechaHoy = new Date().toISOString().split('T')[0];
+  a.download = `asistencia_${fechaHoy}.tsv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast(`✓ ${data.length} registros descargados`,'ok');
+  cerrarModalDescarga();
 }
 
 // Enter en DNI
