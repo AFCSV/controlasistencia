@@ -1957,8 +1957,8 @@ async function descargarAsistenciaSeleccionada(){
   }
 
   // Generar CSV
-  const header = 'Ensayo	Fecha	Tipo	Nombre	Apellidos	DNI	Figura	Filial	Estado	Hora	GPS	Distancia(m)
-';
+  const header = 'Ensayo	Fecha	Tipo	Nombre	Apellidos	DNI	Figura	Filial	Estado	Hora	GPS	Distancia(m)';
+
   const filas = data.map(r=>{
     const p = r.personas;
     const e = r.ensayos;
@@ -1970,8 +1970,7 @@ async function descargarAsistenciaSeleccionada(){
       p?.figura||'', p?.filiales?.nombre||'',
       r.estado_registro, hora, gps, r.distancia_metros||''
     ].join('	');
-  }).join('
-');
+  }).join('\n');
 
   const blob = new Blob(['﻿'+header+filas], {type:'text/tab-separated-values;charset=utf-8'});
   const url = URL.createObjectURL(blob);
