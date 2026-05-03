@@ -1922,8 +1922,17 @@ async function cargarEnsayosParaDescarga(){
     q = q.eq('filial_id', filialId);
   }
 
-  const { data } = await q;
+  const { data, error } = await q;
+  if(error){
+    el.innerHTML = `<div class="alert alert-err"><div class="alert-t">Error</div>${error.message}</div>`;
+    return;
+  }
   S_ensayosDescarga = data || [];
+
+  if(S_ensayosDescarga.length === 0){
+    el.innerHTML = '<div class="empty"><p>No hay ensayos registrados aún</p></div>';
+    return;
+  }
 
   // Poblar filtro de meses
   const meses = [...new Set(S_ensayosDescarga.map(e=>e.fecha?.slice(0,7)))].sort().reverse();
