@@ -702,6 +702,12 @@ window.addEventListener('load', async () => {
   if(userParam)   S.userId   = userParam;
   if(filialParam) S.filialId = filialParam;
 
+  // Si viene con DNI pre-cargado (desde gestion.html)
+  const dniParam = params.get('dni');
+  if(dniParam){
+    S.dniPreCargado = dniParam;
+  }
+
   // Configurar tabs según rol
   configurarTabs();
 
@@ -773,7 +779,17 @@ async function cargarEnsayoActivo(){
   document.getElementById('sub-ensayo-info').textContent =
     `${S.ensayo.nombre} · ${S.ensayo.hora_inicio || ''}`;
 
-  mostrarPaso('paso-dni');
+  // Si tiene DNI pre-cargado, validarlo automáticamente
+  if(S.dniPreCargado){
+    document.getElementById('inp-dni').value = S.dniPreCargado;
+    document.getElementById('inp-dni').readOnly = true;
+    document.getElementById('inp-dni').style.color = 'rgba(255,255,255,0.4)';
+    mostrarPaso('paso-dni');
+    // Auto-buscar después de 300ms para que el DOM esté listo
+    setTimeout(()=>buscarDNI(), 300);
+  } else {
+    mostrarPaso('paso-dni');
+  }
 }
 
 // ═══════════════════════════════════════════════════════
