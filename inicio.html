@@ -773,6 +773,10 @@ window.addEventListener('load', async () => {
   const modoParam = params.get('modo');
   if(modoParam === 'gestion') S.modoGestion = true;
 
+  // Tab directo
+  const tabParam = params.get('tab');
+  if(tabParam) S.tabInicial = tabParam;
+
   // Configurar tabs según rol
   configurarTabs();
 
@@ -2137,7 +2141,9 @@ async function cargarHistorialEnsayos(){
     q = q.eq('filial_id', filialId);
   }
 
+  console.log('cargarHistorialEnsayos - rol:', S.rol, 'filialId:', filialId);
   const { data, error } = await q;
+  console.log('Ensayos:', data?.length, 'Error:', error?.message);
   if(error){ el.innerHTML=`<div class="alert alert-err">${error.message}</div>`; return; }
   if(!data || data.length === 0){
     el.innerHTML='<div class="empty"><p>Sin ensayos registrados</p></div>'; return;
