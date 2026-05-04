@@ -531,12 +531,8 @@ body::before{content:'';position:fixed;inset:0;
           <div class="alert-t">📍 Lugar seleccionado</div>
           <span id="cfg-lugar-info-txt"></span>
         </div>
-        <div class="f-row">
-          <div class="f"><label>Integrantes esperados</label>
-            <input type="number" id="cfg-esperados" placeholder="ej. 45" min="1"></div>
-          <div class="f"><label>Radio GPS (metros)</label>
-            <input type="number" id="cfg-radio" value="150" min="50" max="1000"></div>
-        </div>
+        <div class="f"><label>Radio GPS (metros)</label>
+          <input type="number" id="cfg-radio" value="150" min="50" max="1000"></div>
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
           <input type="checkbox" id="cfg-selfie" checked style="width:auto;cursor:pointer">
           <label for="cfg-selfie" style="font-size:13px;cursor:pointer;color:var(--w)">
@@ -1147,6 +1143,12 @@ function setGPSStatus(tipo, txt, sub){
   document.getElementById('gps-sub').textContent = sub || '';
 }
 
+function formatFecha(fecha){
+  if(!fecha) return '—';
+  const d = new Date(fecha+'T00:00:00');
+  return d.toLocaleDateString('es-PE',{day:'numeric',month:'short',year:'numeric'});
+}
+
 function calcDistancia(lat1,lng1,lat2,lng2){
   const R=6371000, dLat=(lat2-lat1)*Math.PI/180, dLng=(lng2-lng1)*Math.PI/180;
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
@@ -1535,8 +1537,7 @@ async function guardarRegularizacion(){
 let S_lugares = []; // cache de lugares
 
 async function cargarLugares(){
-  // Buscar lugares de la filial actual o del Bloque Indomables por defecto
-  const filialBuscar = S.filialId || 'bb000001-bb00-bb00-bb00-bb0000000001';
+  // Traer todos los lugares activos sin filtrar por filial
   const { data } = await sb.from('lugares_ensayo')
     .select('*')
     .eq('activo', true)
@@ -1640,13 +1641,20 @@ async function crearEnsayo(){
   const ventIni  = document.getElementById('cfg-ventana-ini').value;
   const ventFin  = document.getElementById('cfg-ventana-fin').value;
   const lugar    = document.getElementById('cfg-lugar').value.trim();
-  const esperados= parseInt(document.getElementById('cfg-esperados').value)||null;
+  const esperados = null;
   const radio    = parseInt(document.getElementById('cfg-radio').value)||200;
   const selfie   = document.getElementById('cfg-selfie').checked;
   const usaGPS   = document.getElementById('cfg-gps').checked;
 
-  if(!nombre){ showToast('Ingresa un nombre para el ensayo','warn'); return; }
-  if(!fecha)  { showToast('Selecciona la fecha','warn'); return; }
+  if(!fecha){ showToast('Selecciona la fecha','warn'); return; }
+  // Auto-generar nombre si está vacío
+  if(!nombre){
+    const tipos = {regular:'Regular', extra:'Extra', coreografia:'Coreografía'};
+    const fechaObj = new Date(fecha+'T00:00:00');
+    const fechaStr = fechaObj.toLocaleDateString('es-PE',{day:'numeric',month:'long'});
+    nombre = `Ensayo ${tipos[tipo]||tipo} · ${fechaStr}`;
+    document.getElementById('cfg-nombre').value = nombre;
+  }
 
   // Usar coordenadas del lugar seleccionado, o capturar GPS actual
   let latRef=null, lngRef=null, lugarNombre=null;
@@ -1677,7 +1685,7 @@ async function crearEnsayo(){
     ventana_inicio:   ventIni||null,
     ventana_fin:      ventFin||null,
     lugar:            lugarNombre || lugar || null,
-    esperados,
+    esperados: null,
     radio_metros:     radio,
     requiere_selfie:  selfie,
     lat_referencia:   latRef,
@@ -1776,11 +1784,10 @@ function generarQR(){
   const eid  = S.ensayo?.id?.slice(0,8)||'NOEID';
   S.tokenActual = `CAP:${ts}:${rand}:${eid}`;
 
-  // Actualizar token en BD
-  if(S.ensayo){
+  // Actualizar link_directo si no existe
+  if(S.ensayo && !S.ensayo.link_directo){
     sb.from('ensayos').update({
-      token_activo: S.tokenActual,
-      token_expira_at: new Date(Date.now()+QR_DURACION*1000).toISOString()
+      link_directo: generarTokenLink()
     }).eq('id',S.ensayo.id).then(()=>{});
   }
 
