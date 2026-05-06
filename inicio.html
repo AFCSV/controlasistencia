@@ -2268,14 +2268,19 @@ async function eliminarEnsayo(){
 
   showToast('🗑️ Ensayo eliminado','ok');
   cerrarModalEditarEnsayo();
-  cargarHistorialEnsayos();
-  if(S.ensayo?.id === S_ensayoEditando.id){
+
+  // Limpiar estado del ensayo activo si era el eliminado
+  const eraActivo = S.ensayo?.id === S_ensayoEditando.id;
+  S_ensayoEditando = null;
+
+  if(eraActivo){
     S.ensayo = null;
     clearInterval(S.timerInterval);
-    document.getElementById('qr-admin-section').style.display = 'none';
-    const crearSec = document.getElementById('crear-ensayo-section');
-    if(crearSec) crearSec.style.display = 'block';
   }
+
+  // Recargar panel completo para refrescar todo
+  await cargarAdminPanel();
+  cargarHistorialEnsayos();
 }
 
 async function marcarEnsayoNulo(){
@@ -2289,14 +2294,17 @@ async function marcarEnsayoNulo(){
 
   showToast('🚫 Ensayo marcado como nulo','warn');
   cerrarModalEditarEnsayo();
-  cargarHistorialEnsayos();
-  if(S.ensayo?.id === S_ensayoEditando.id){
+
+  const eraActivo = S.ensayo?.id === S_ensayoEditando.id;
+  S_ensayoEditando = null;
+
+  if(eraActivo){
     S.ensayo = null;
     clearInterval(S.timerInterval);
-    document.getElementById('qr-admin-section').style.display = 'none';
-    const crearSec = document.getElementById('crear-ensayo-section');
-    if(crearSec) crearSec.style.display = 'block';
   }
+
+  await cargarAdminPanel();
+  cargarHistorialEnsayos();
 }
 
 // Enter en DNI
