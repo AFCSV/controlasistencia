@@ -495,8 +495,8 @@ body::before{content:'';position:fixed;inset:0;
         <div style="flex:1;height:1px;background:rgba(245,166,35,.13)"></div>
       </div>
       <div class="card">
-        <div class="f"><label>Nombre del ensayo</label>
-          <input type="text" id="cfg-nombre" placeholder="ej. Ensayo General · Semana 5"></div>
+        <!-- Nombre se auto-genera: Ensayo + tipo + fecha -->
+        <input type="hidden" id="cfg-nombre" value="">
         <div class="f-row">
           <div class="f"><label>Tipo</label>
             <select id="cfg-tipo">
@@ -1425,13 +1425,20 @@ async function cargarListaAsistencia(){
   if(!S.ensayo){ el.innerHTML='<div class="empty"><p>Sin ensayo activo</p></div>'; return; }
 
   const { data } = await sb.from('asistencia')
-    .select('*, personas(nombres,apellidos,figura,filiales!personas_filial_id_fkey(nombre))')
+    .select('*, personas(nombres,apellidos,figura,estado_membresia,filiales!personas_filial_id_fkey(nombre))')
     .eq('ensayo_id', S.ensayo.id)
     .order('hora_registro',{ascending:false});
 
   S.listaRegistros = data || [];
   renderLista();
   actualizarStats();
+  // Auto-refresh cada 30s si la lista está visible
+  clearTimeout(S._listaRefreshTimer);
+  S._listaRefreshTimer = setTimeout(()=>{
+    if(document.getElementById('tab-lista-content')?.style.display !== 'none'){
+      cargarListaAsistencia();
+    }
+  }, 30000);
 }
 
 function renderLista(){
@@ -1445,20 +1452,31 @@ function renderLista(){
 
   el.innerHTML = lista.map(r=>{
     const p = r.personas;
-    const nombre = p ? `${p.nombres} ${p.apellidos}` : r.motivo_pendiente||'Aspirante';
-    const ini = nombre.split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const nombreCompleto = p ? `${p.apellidos} ${p.nombres}` : r.motivo_pendiente||'Aspirante';
+    const ini = (p ? `${p.nombres[0]||''}${p.apellidos[0]||''}` : 'AS').toUpperCase();
     const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+    const fecha = new Date(r.hora_registro).toLocaleDateString('es-PE',{day:'numeric',month:'short'});
+    const coords = r.lat ? `${parseFloat(r.lat).toFixed(5)}, ${parseFloat(r.lng).toFixed(5)}` : '—';
     return `
-    <div class="att-item" onclick="abrirMarca('${r.id}')">
-      <div class="att-av">${ini}</div>
-      <div class="att-info">
-        <div class="att-name">${nombre}</div>
-        <div class="att-meta">${p?.figura||''} ${p?.filiales?.nombre ? '· '+p.filiales.nombre : ''} · ${hora}</div>
+    <div class="att-item" onclick="abrirMarca('${r.id}')" style="flex-direction:column;align-items:stretch;gap:6px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="att-av">${ini}</div>
+        <div class="att-info" style="flex:1">
+          <div class="att-name">${nombreCompleto}</div>
+          <div class="att-meta">
+            ${p?.figura ? `<span class="b b-info" style="font-size:9px">${p.figura}</span>` : ''}
+            ${p?.estado_membresia ? `<span class="b b-gray" style="font-size:9px">${p.estado_membresia}</span>` : ''}
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+          ${estadoBadgeAsist(r.estado_registro)}
+          <span style="font-size:10px;color:var(--w3)">${fecha} ${hora}</span>
+        </div>
       </div>
-      <div class="att-right">
-        ${estadoBadgeAsist(r.estado_registro)}
-        ${r.selfie_url?'<span class="b b-gray">📸</span>':''}
-        ${r.lat?'<span class="b b-gray">📍</span>':''}
+      <div style="display:flex;gap:6px;flex-wrap:wrap;padding-left:44px">
+        ${r.lat ? `<span class="b b-gray" style="font-size:9px" title="${coords}">📍 ${coords}</span>` : '<span class="b b-gray" style="font-size:9px">📍 Sin GPS</span>'}
+        ${r.selfie_url ? `<a href="${r.selfie_url}" target="_blank" class="b b-info" style="font-size:9px;text-decoration:none">📸 Ver selfie</a>` : ''}
+        ${r.motivo_pendiente ? `<span class="b b-warn" style="font-size:9px" title="${r.motivo_pendiente}">⚠️ ${r.motivo_pendiente.slice(0,30)}${r.motivo_pendiente.length>30?'...':''}</span>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -1647,14 +1665,12 @@ async function crearEnsayo(){
   const usaGPS   = document.getElementById('cfg-gps').checked;
 
   if(!fecha){ showToast('Selecciona la fecha','warn'); return; }
-  // Auto-generar nombre si está vacío
-  if(!nombre){
-    const tipos = {regular:'Regular', extra:'Extra', coreografia:'Coreografía'};
-    const fechaObj = new Date(fecha+'T00:00:00');
-    const fechaStr = fechaObj.toLocaleDateString('es-PE',{day:'numeric',month:'long'});
-    nombre = `Ensayo ${tipos[tipo]||tipo} · ${fechaStr}`;
-    document.getElementById('cfg-nombre').value = nombre;
-  }
+  // Auto-generar nombre siempre
+  const tiposMap = {regular:'Regular', extra:'Extra', coreografia:'Coreografía'};
+  const fechaObj = new Date(fecha+'T00:00:00');
+  const fechaStr = fechaObj.toLocaleDateString('es-PE',{day:'numeric',month:'long',year:'numeric'});
+  nombre = `Ensayo ${tiposMap[tipo]||tipo} · ${fechaStr}`;
+  document.getElementById('cfg-nombre').value = nombre;
 
   // Usar coordenadas del lugar seleccionado, o capturar GPS actual
   let latRef=null, lngRef=null, lugarNombre=null;
@@ -2115,15 +2131,48 @@ async function descargarAsistenciaSeleccionada(){
     ].join('	');
   }).join('\n');
 
-  const blob = new Blob(['﻿'+header+filas], {type:'text/tab-separated-values;charset=utf-8'});
+  // Generar Excel simple con XML
+  const fechaHoy = new Date().toISOString().split('T')[0];
+  
+  // Construir XML Excel
+  const cols = ['Ensayo','Fecha','Tipo','Apellidos','Nombres','DNI','Figura','Estado Integr.','Estado Marca','Hora','GPS Lat','GPS Lng','Distancia(m)','Selfie URL','Observaciones'];
+  
+  const filasDatos = data.map(r=>{
+    const p = r.personas;
+    const e = r.ensayos;
+    const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+    const tiposMap = {regular:'Regular', extra:'Extra', coreografia:'Coreografía'};
+    const nombreEnsayo = e?.nombre || `Ensayo ${tiposMap[e?.tipo]||''} · ${formatFecha(e?.fecha)}`;
+    return [
+      nombreEnsayo, e?.fecha||'', e?.tipo||'',
+      p?.apellidos||'', p?.nombres||'', p?.dni||'',
+      p?.figura||'', p?.estado_membresia||'',
+      r.estado_registro, hora,
+      r.lat ? parseFloat(r.lat).toFixed(6) : '',
+      r.lng ? parseFloat(r.lng).toFixed(6) : '',
+      r.distancia_metros||'',
+      r.selfie_url||'',
+      r.motivo_pendiente||''
+    ];
+  });
+
+  // XML Excel
+  const esc = v => String(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const cell = v => '<Cell><Data ss:Type="String">'+esc(v)+'</Data></Cell>';
+  const headerRow = '<Row>'+cols.map(cell).join('')+'</Row>';
+  const dataRows = filasDatos.map(fila=>'<Row>'+fila.map(cell).join('')+'</Row>').join('\n');
+  const xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>'+
+    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'+
+    '<Worksheet ss:Name="Asistencia"><Table>'+headerRow+dataRows+'</Table></Worksheet></Workbook>';
+
+  const blob = new Blob([xml], {type:'application/vnd.ms-excel;charset=utf-8'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  const fechaHoy = new Date().toISOString().split('T')[0];
-  a.download = `asistencia_${fechaHoy}.tsv`;
+  a.download = `asistencia_${fechaHoy}.xls`;
   a.click();
   URL.revokeObjectURL(url);
-  showToast(`✓ ${data.length} registros descargados`,'ok');
+  showToast(`✓ ${data.length} registros descargados en Excel`,'ok');
   cerrarModalDescarga();
 }
 
