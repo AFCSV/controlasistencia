@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!-- v20260506012841 -->
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -1366,7 +1366,7 @@ async function procesarTokenQR(token){
 //  ASPIRANTE
 // ═══════════════════════════════════════════════════════
 async function registrarAspirante(){
-  const nombres   = document.getElementById('asp-nombres').value.trim();
+  let nombres   = document.getElementById('asp-nombres').value.trim();
   const apellidos = document.getElementById('asp-apellidos').value.trim();
   const wsp       = document.getElementById('asp-wsp').value.trim();
   const correo    = document.getElementById('asp-correo').value.trim();
@@ -1452,7 +1452,7 @@ function renderLista(){
 
   el.innerHTML = lista.map(r=>{
     const p = r.personas;
-    const nombreCompleto = p ? `${p.apellidos} ${p.nombres}` : r.motivo_pendiente||'Aspirante';
+    let nombreCompleto = p ? `${p.apellidos} ${p.nombres}` : r.motivo_pendiente||'Aspirante';
     const ini = (p ? `${p.nombres[0]||''}${p.apellidos[0]||''}` : 'AS').toUpperCase();
     const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
     const fecha = new Date(r.hora_registro).toLocaleDateString('es-PE',{day:'numeric',month:'short'});
@@ -1505,7 +1505,7 @@ function abrirMarca(id){
   if(!r) return;
   S.marcaEditando = r;
   const p = r.personas;
-  const nombre = p ? `${p.nombres} ${p.apellidos}` : 'Aspirante';
+  let nombre = p ? `${p.nombres} ${p.apellidos}` : 'Aspirante';
   const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
 
   document.getElementById('modal-marca-title').textContent = nombre;
@@ -1651,7 +1651,7 @@ async function cargarAdminPanel(){
 }
 
 async function crearEnsayo(){
-  const nombre   = document.getElementById('cfg-nombre').value.trim();
+  let nombre   = document.getElementById('cfg-nombre').value.trim();
   const tipo     = document.getElementById('cfg-tipo').value;
   const fecha    = document.getElementById('cfg-fecha').value;
   const horaIni  = document.getElementById('cfg-hora-inicio').value;
@@ -1693,8 +1693,9 @@ async function crearEnsayo(){
 
   const link = generarTokenLink();
 
+  console.log('Creando ensayo:', {nombre, tipo, fecha, filial_id: S.filialId});
   const { error } = await sb.from('ensayos').insert({
-    filial_id:        S.filialId || S.ensayo?.filial_id || null,
+    filial_id:        S.filialId || S.ensayo?.filial_id || 'bb000001-bb00-bb00-bb00-bb0000000001',
     nombre, tipo, fecha,
     hora_inicio:      horaIni||null,
     minutos_tardanza: tardanza,
@@ -1711,7 +1712,11 @@ async function crearEnsayo(){
     creado_por:       S.userId||null,
   });
 
-  if(error){ showToast('Error: '+error.message,'err'); return; }
+  if(error){ 
+    console.error('Error creando ensayo:', error);
+    showToast('Error: '+error.message,'err'); 
+    return; 
+  }
   showToast('✓ Ensayo creado y activo','ok');
 
   // Generar mensaje WhatsApp listo para compartir
@@ -1837,7 +1842,7 @@ function exportarLista(){
   const header = `ASISTENCIA · ${S.ensayo?.nombre||''}\nFecha: ${S.ensayo?.fecha||''}\n\n`;
   const filas = S.listaRegistros.map((r,i)=>{
     const p = r.personas;
-    const nombre = p?`${p.apellidos} ${p.nombres}`:'Aspirante';
+    let nombre = p?`${p.apellidos} ${p.nombres}`:'Aspirante';
     const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
     return `${i+1}\t${nombre}\t${p?.figura||''}\t${r.estado_registro}\t${hora}${r.distancia_metros?'\t'+r.distancia_metros+'m':''}`;
   }).join('\n');
@@ -2142,7 +2147,7 @@ async function descargarAsistenciaSeleccionada(){
     const e = r.ensayos;
     const hora = new Date(r.hora_registro).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
     const tiposMap = {regular:'Regular', extra:'Extra', coreografia:'Coreografía'};
-    const nombreEnsayo = e?.nombre || `Ensayo ${tiposMap[e?.tipo]||''} · ${formatFecha(e?.fecha)}`;
+    let nombreEnsayo = e?.nombre || `Ensayo ${tiposMap[e?.tipo]||''} · ${formatFecha(e?.fecha)}`;
     return [
       nombreEnsayo, e?.fecha||'', e?.tipo||'',
       p?.apellidos||'', p?.nombres||'', p?.dni||'',
