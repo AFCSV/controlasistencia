@@ -552,6 +552,43 @@ body::before{content:'';position:fixed;inset:0;
 
     </div><!-- /crear-ensayo-section -->
 
+    <!-- Gestión de lugares de ensayo -->
+    <div id="lugares-section" style="margin-top:4px;display:none">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;
+        color:var(--d);margin:20px 0 12px;display:flex;align-items:center;gap:8px">
+        📍 LUGARES DE ENSAYO
+        <div style="flex:1;height:1px;background:rgba(245,166,35,.13)"></div>
+        <button class="btn btn-g btn-sm" onclick="toggleNuevoLugar()"
+          style="margin-bottom:0;font-size:10px">+ Nuevo lugar</button>
+      </div>
+      <div id="form-nuevo-lugar" style="display:none" class="card">
+        <div class="card-t">Nuevo lugar</div>
+        <div class="f"><label>Nombre</label>
+          <input type="text" id="lug-nombre" placeholder="ej. Parque Kennedy"></div>
+        <div class="f"><label>Dirección</label>
+          <input type="text" id="lug-dir" placeholder="ej. Av. Larco, Miraflores"></div>
+        <button class="btn btn-g btn-sm" onclick="capturarGPSLugar()"
+          id="btn-gps-lugar" style="margin-bottom:10px">📍 Usar mi ubicación actual</button>
+        <div class="f-row">
+          <div class="f"><label>Latitud</label>
+            <input type="number" id="lug-lat" placeholder="-12.0000" step="0.0001"></div>
+          <div class="f"><label>Longitud</label>
+            <input type="number" id="lug-lng" placeholder="-77.0000" step="0.0001"></div>
+        </div>
+        <div class="f"><label>Radio GPS (metros)</label>
+          <input type="number" id="lug-radio" value="150" min="50" max="500"></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-d btn-sm" onclick="guardarLugar()" style="flex:1;margin-bottom:0">
+            💾 Guardar</button>
+          <button class="btn btn-g btn-sm" onclick="toggleNuevoLugar()" style="flex:1;margin-bottom:0">
+            Cancelar</button>
+        </div>
+      </div>
+      <div id="lista-lugares-admin">
+        <div class="loader"><div class="spin"></div> Cargando...</div>
+      </div>
+    </div>
+
     <!-- Historial de ensayos con edición — solo visible en tab admin -->
     <div id="historial-ensayos-section" style="margin-top:4px;display:none">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;
@@ -816,6 +853,8 @@ function configurarTabs(){
       }
       const histSecG = document.getElementById('historial-ensayos-section');
       if(histSecG) histSecG.style.display = 'block';
+      const lugSecG = document.getElementById('lugares-section');
+      if(lugSecG){ lugSecG.style.display = 'block'; cargarLugaresAdmin(); }
       cargarAdminPanel().then(()=> cargarHistorialEnsayos());
     }, 100);
   } else {
@@ -844,9 +883,11 @@ function setTab(tab, btn){
   if(target) target.style.display = 'block';
   if(tab === 'lista') cargarListaAsistencia();
   if(tab === 'admin'){
-    // Mostrar historial al entrar en tab admin
+    // Mostrar historial y lugares al entrar en tab admin
     const histSec = document.getElementById('historial-ensayos-section');
     if(histSec) histSec.style.display = 'block';
+    const lugSec = document.getElementById('lugares-section');
+    if(lugSec){ lugSec.style.display = 'block'; cargarLugaresAdmin(); }
     cargarAdminPanel().then(()=>{
       if(S.ensayo){
         const qrSec = document.getElementById('qr-admin-section');
@@ -1222,13 +1263,20 @@ async function confirmarAsistencia(){
 
     // Subir selfie a Supabase Storage
     if(S.selfieBlob){
-      const fileName = `${S.ensayo.id}/${S.persona.id}_${Date.now()}.jpg`;
-      const { data: upload, error: upErr } = await sb.storage
-        .from('pagos-capturas') // reutilizamos el bucket existente
-        .upload(`selfies/${fileName}`, S.selfieBlob, { contentType:'image/jpeg', upsert:true });
-      if(!upErr && upload){
-        const { data: { publicUrl } } = sb.storage.from('pagos-capturas').getPublicUrl(`selfies/${fileName}`);
-        selfieUrl = publicUrl;
+      try {
+        const fileName = `selfies/${S.ensayo.id}/${S.persona.id}_${Date.now()}.jpg`;
+        const { data: upload, error: upErr } = await sb.storage
+          .from('pagos-capturas')
+          .upload(fileName, S.selfieBlob, { contentType:'image/jpeg', upsert:true });
+        if(!upErr && upload){
+          const { data: urlData } = sb.storage.from('pagos-capturas').getPublicUrl(fileName);
+          selfieUrl = urlData?.publicUrl || null;
+        } else if(upErr){
+          console.warn('Error subiendo selfie:', upErr.message);
+          // Continuar sin selfie — no bloquear el registro
+        }
+      } catch(e){
+        console.warn('Selfie upload failed:', e.message);
       }
     }
 
@@ -1258,6 +1306,7 @@ async function confirmarAsistencia(){
     mostrarExito();
 
   } catch(e){
+    console.error('Error en confirmarAsistencia:', e);
     showToast('Error: '+e.message,'err');
     btn.disabled=false; btn.textContent='✅ Confirmar asistencia';
   }
@@ -1294,15 +1343,17 @@ function mostrarExito(){
   showToast(titulos[tipo] || '¡Listo!','ok');
 
   // Auto-volver al inicio después de 5 segundos
+  if(S._autoVolverTimer) clearInterval(S._autoVolverTimer);
   let cuentaAtras = 5;
   const btnVolver = document.getElementById('btn-nueva-marca');
   if(btnVolver) btnVolver.textContent = `← Volver al inicio (${cuentaAtras}s)`;
-  const tickInterval = setInterval(()=>{
+  S._autoVolverTimer = setInterval(()=>{
     cuentaAtras--;
     const btn2 = document.getElementById('btn-nueva-marca');
     if(btn2) btn2.textContent = `← Volver al inicio (${cuentaAtras}s)`;
     if(cuentaAtras <= 0){
-      clearInterval(tickInterval);
+      clearInterval(S._autoVolverTimer);
+      S._autoVolverTimer = null;
       volverDNI();
     }
   }, 1000);
@@ -1870,6 +1921,8 @@ function mostrarPaso(id){
 }
 
 function volverDNI(){
+  // Limpiar timer de auto-volver si existe
+  if(S._autoVolverTimer){ clearInterval(S._autoVolverTimer); S._autoVolverTimer=null; }
   S.persona=null; S.gps=null; S.gpsOk=false;
   S.selfieBlob=null; S.selfieOk=false;
   S.tipoAsistencia=null; S.motivo_pendiente=null; S.tokenActual='';
@@ -2185,6 +2238,108 @@ async function descargarAsistenciaSeleccionada(){
   URL.revokeObjectURL(url);
   showToast(`✓ ${data.length} registros descargados en Excel`,'ok');
   cerrarModalDescarga();
+}
+
+// ═══════════════════════════════════════════════════════
+//  GESTIÓN DE LUGARES DE ENSAYO
+// ═══════════════════════════════════════════════════════
+function toggleNuevoLugar(){
+  const form = document.getElementById('form-nuevo-lugar');
+  const visible = form.style.display === 'block';
+  form.style.display = visible ? 'none' : 'block';
+  if(!visible){
+    document.getElementById('lug-nombre').value = '';
+    document.getElementById('lug-dir').value = '';
+    document.getElementById('lug-lat').value = '';
+    document.getElementById('lug-lng').value = '';
+    document.getElementById('lug-radio').value = '150';
+  }
+}
+
+async function capturarGPSLugar(){
+  const btn = document.getElementById('btn-gps-lugar');
+  btn.textContent = '⏳ Capturando...';
+  btn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      document.getElementById('lug-lat').value = pos.coords.latitude.toFixed(7);
+      document.getElementById('lug-lng').value = pos.coords.longitude.toFixed(7);
+      btn.textContent = '✅ Ubicación capturada';
+      btn.disabled = false;
+    },
+    err => {
+      showToast('No se pudo obtener la ubicación','err');
+      btn.textContent = '📍 Usar mi ubicación actual';
+      btn.disabled = false;
+    },
+    {enableHighAccuracy:true, timeout:10000}
+  );
+}
+
+async function guardarLugar(){
+  const nombre = document.getElementById('lug-nombre').value.trim();
+  const dir    = document.getElementById('lug-dir').value.trim();
+  const lat    = parseFloat(document.getElementById('lug-lat').value);
+  const lng    = parseFloat(document.getElementById('lug-lng').value);
+  const radio  = parseInt(document.getElementById('lug-radio').value)||150;
+
+  if(!nombre){ showToast('El nombre es obligatorio','warn'); return; }
+
+  const { error } = await sb.from('lugares_ensayo').insert({
+    filial_id:    S.filialId || 'bb000001-bb00-bb00-bb00-bb0000000001',
+    nombre,
+    direccion:    dir || null,
+    lat:          isNaN(lat) ? null : lat,
+    lng:          isNaN(lng) ? null : lng,
+    radio_metros: radio,
+    activo:       true,
+  });
+
+  if(error){ showToast('Error: '+error.message,'err'); return; }
+
+  showToast('✅ Lugar guardado','ok');
+  toggleNuevoLugar();
+  cargarLugaresAdmin();
+  cargarLugares(); // actualizar selector del formulario de ensayo
+}
+
+async function cargarLugaresAdmin(){
+  const el = document.getElementById('lista-lugares-admin');
+  if(!el) return;
+  el.innerHTML = '<div class="loader"><div class="spin"></div></div>';
+
+  const { data } = await sb.from('lugares_ensayo')
+    .select('*').eq('activo',true).order('nombre');
+
+  if(!data || data.length === 0){
+    el.innerHTML = '<div class="empty"><p>Sin lugares registrados</p></div>'; return;
+  }
+
+  el.innerHTML = data.map(l=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;
+      border-bottom:1px solid var(--bd)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600">${l.nombre}</div>
+        <div style="font-size:10px;color:var(--w3);margin-top:2px">
+          ${l.direccion||'Sin dirección'} · Radio: ${l.radio_metros}m
+          ${l.lat ? `· 📍 ${parseFloat(l.lat).toFixed(4)}, ${parseFloat(l.lng).toFixed(4)}` : '· Sin GPS'}
+        </div>
+      </div>
+      <button onclick="eliminarLugar('${l.id}')" 
+        style="background:rgba(200,16,46,.15);color:#FF8099;border:1px solid rgba(200,16,46,.25);
+        border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;flex-shrink:0">
+        🗑️
+      </button>
+    </div>`).join('');
+}
+
+async function eliminarLugar(id){
+  if(!confirm('¿Eliminar este lugar?')) return;
+  const { error } = await sb.from('lugares_ensayo').update({activo:false}).eq('id',id);
+  if(error){ showToast('Error: '+error.message,'err'); return; }
+  showToast('Lugar eliminado','ok');
+  cargarLugaresAdmin();
+  cargarLugares();
 }
 
 // ═══════════════════════════════════════════════════════
