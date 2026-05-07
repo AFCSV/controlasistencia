@@ -1546,6 +1546,12 @@ let S_modoLista = 'activo'; // 'activo' | 'todos' | 'pendientes'
 
 function cambiarEnsayoLista(modo){
   S_modoLista = modo;
+  // Al cambiar el modo del select, resetear las pills al estado "Todos"
+  // para que no se pisen los filtros (ej. pill "Confirmados" + modo "pendientes" = vacío)
+  S.filtroLista = 'todos';
+  document.querySelectorAll('.pills .pill').forEach(p=>p.classList.remove('on'));
+  const pillTodos = document.querySelector('.pills .pill');
+  if(pillTodos) pillTodos.classList.add('on');
   cargarListaAsistencia();
 }
 
