@@ -552,8 +552,8 @@ body::before{content:'';position:fixed;inset:0;
 
     </div><!-- /crear-ensayo-section -->
 
-    <!-- Historial de ensayos con edición -->
-    <div id="historial-ensayos-section" style="margin-top:4px">
+    <!-- Historial de ensayos con edición — solo visible en tab admin -->
+    <div id="historial-ensayos-section" style="margin-top:4px;display:none">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;
         color:var(--d);margin:20px 0 12px;display:flex;align-items:center;gap:8px">
         📋 ENSAYOS RECIENTES
@@ -814,6 +814,8 @@ function configurarTabs(){
         document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('on'));
         btnAdmin.classList.add('on');
       }
+      const histSecG = document.getElementById('historial-ensayos-section');
+      if(histSecG) histSecG.style.display = 'block';
       cargarAdminPanel().then(()=> cargarHistorialEnsayos());
     }, 100);
   } else {
@@ -842,8 +844,10 @@ function setTab(tab, btn){
   if(target) target.style.display = 'block';
   if(tab === 'lista') cargarListaAsistencia();
   if(tab === 'admin'){
+    // Mostrar historial al entrar en tab admin
+    const histSec = document.getElementById('historial-ensayos-section');
+    if(histSec) histSec.style.display = 'block';
     cargarAdminPanel().then(()=>{
-      // Re-forzar visibilidad tras cargar
       if(S.ensayo){
         const qrSec = document.getElementById('qr-admin-section');
         if(qrSec) qrSec.style.display = 'block';
@@ -1290,16 +1294,18 @@ function mostrarExito(){
   showToast(titulos[tipo] || '¡Listo!','ok');
 
   // Auto-volver al inicio después de 5 segundos
-  // Usamos setTimeout encadenado para asegurar que el DOM esté listo
-  let cuenta = 5;
-  const tick = () => {
-    const btn = document.getElementById('btn-nueva-marca');
-    if(btn) btn.textContent = `← Volver al inicio (${cuenta}s)`;
-    if(cuenta <= 0){ volverDNI(); return; }
-    cuenta--;
-    setTimeout(tick, 1000);
-  };
-  setTimeout(tick, 100); // pequeño delay para que el DOM se pinte
+  let cuentaAtras = 5;
+  const btnVolver = document.getElementById('btn-nueva-marca');
+  if(btnVolver) btnVolver.textContent = `← Volver al inicio (${cuentaAtras}s)`;
+  const tickInterval = setInterval(()=>{
+    cuentaAtras--;
+    const btn2 = document.getElementById('btn-nueva-marca');
+    if(btn2) btn2.textContent = `← Volver al inicio (${cuentaAtras}s)`;
+    if(cuentaAtras <= 0){
+      clearInterval(tickInterval);
+      volverDNI();
+    }
+  }, 1000);
 }
 
 // ═══════════════════════════════════════════════════════
