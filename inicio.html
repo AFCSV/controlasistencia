@@ -578,29 +578,7 @@ body::before{content:'';position:fixed;inset:0;
         <button class="btn btn-g btn-sm" onclick="toggleNuevoLugar()"
           style="margin-bottom:0;font-size:10px">+ Nuevo lugar</button>
       </div>
-      <div id="form-nuevo-lugar" style="display:none" class="card">
-        <div class="card-t">Nuevo lugar</div>
-        <div class="f"><label>Nombre</label>
-          <input type="text" id="lug-nombre" placeholder="ej. Parque Kennedy"></div>
-        <div class="f"><label>Dirección</label>
-          <input type="text" id="lug-dir" placeholder="ej. Av. Larco, Miraflores"></div>
-        <button class="btn btn-g btn-sm" onclick="capturarGPSLugar()"
-          id="btn-gps-lugar" style="margin-bottom:10px">📍 Usar mi ubicación actual</button>
-        <div class="f-row">
-          <div class="f"><label>Latitud</label>
-            <input type="number" id="lug-lat" placeholder="-12.0000" step="0.0001"></div>
-          <div class="f"><label>Longitud</label>
-            <input type="number" id="lug-lng" placeholder="-77.0000" step="0.0001"></div>
-        </div>
-        <div class="f"><label>Radio GPS (metros)</label>
-          <input type="number" id="lug-radio" value="150" min="50" max="500"></div>
-        <div style="display:flex;gap:8px">
-          <button class="btn btn-d btn-sm" onclick="guardarLugar()" style="flex:1;margin-bottom:0">
-            💾 Guardar</button>
-          <button class="btn btn-g btn-sm" onclick="toggleNuevoLugar()" style="flex:1;margin-bottom:0">
-            Cancelar</button>
-        </div>
-      </div>
+
       <div id="lista-lugares-admin">
         <div class="loader"><div class="spin"></div> Cargando...</div>
       </div>
@@ -657,8 +635,22 @@ body::before{content:'';position:fixed;inset:0;
         <div class="f"><label>Hora inicio</label><input type="time" id="mee-hora"></div>
         <div class="f"><label>Min. tardanza</label><input type="number" id="mee-tardanza" min="1" max="60"></div>
       </div>
-      <div class="f"><label>Lugar</label><input type="text" id="mee-lugar"></div>
-      <div class="f"><label>Integrantes esperados</label><input type="number" id="mee-esperados" min="1"></div>
+      <div class="f"><label>Lugar de ensayo</label>
+        <select id="mee-lugar-sel" onchange="seleccionarLugarEdit(this.value)">
+          <option value="">Selecciona un lugar...</option>
+          <option value="custom">+ Otro lugar (manual)</option>
+        </select>
+      </div>
+      <div id="mee-lugar-custom-wrap" style="display:none">
+        <div class="f"><label>Dirección manual</label>
+          <input type="text" id="mee-lugar" placeholder="ej. Av. Brasil 1200"></div>
+      </div>
+      <div class="f-row">
+        <div class="f"><label>Apertura <span style="font-size:9px;color:var(--w3);font-weight:400">(hora mín.)</span></label>
+          <input type="time" id="mee-ventana-ini"></div>
+        <div class="f"><label>Cierre <span style="font-size:9px;color:var(--w3);font-weight:400">(hora máx.)</span></label>
+          <input type="time" id="mee-ventana-fin"></div>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
         <input type="checkbox" id="mee-selfie" style="width:auto;cursor:pointer">
         <label for="mee-selfie" style="font-size:13px;cursor:pointer;color:var(--w)">Requerir selfie</label>
@@ -734,6 +726,30 @@ body::before{content:'';position:fixed;inset:0;
       <button class="btn btn-g btn-sm" onclick="cerrarModalDescarga()" 
         style="flex:1;margin-bottom:0">Cancelar</button>
     </div>
+  </div>
+</div>
+
+<!-- ── MODAL: Nuevo lugar de ensayo ── -->
+<div class="modal-bg" id="modal-nuevo-lugar">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Nuevo lugar de ensayo</div>
+    <div class="f"><label>Nombre</label>
+      <input type="text" id="lug-nombre" placeholder="ej. Parque Kennedy"></div>
+    <div class="f"><label>Dirección</label>
+      <input type="text" id="lug-dir" placeholder="ej. Av. Larco, Miraflores"></div>
+    <button class="btn btn-g btn-sm" onclick="capturarGPSLugar()"
+      id="btn-gps-lugar" style="margin-bottom:10px">📍 Usar mi ubicación actual</button>
+    <div class="f-row">
+      <div class="f"><label>Latitud</label>
+        <input type="number" id="lug-lat" placeholder="-12.0000" step="0.0001"></div>
+      <div class="f"><label>Longitud</label>
+        <input type="number" id="lug-lng" placeholder="-77.0000" step="0.0001"></div>
+    </div>
+    <div class="f"><label>Radio GPS (metros)</label>
+      <input type="number" id="lug-radio" value="150" min="50" max="500"></div>
+    <button class="btn btn-d" onclick="guardarLugar()">💾 Guardar lugar</button>
+    <button class="btn btn-g" onclick="document.getElementById('modal-nuevo-lugar').classList.remove('open')">Cancelar</button>
   </div>
 </div>
 
@@ -991,6 +1007,20 @@ async function buscarDNI(){
   if(dni.length !== 8){ mostrarErrDNI('El DNI debe tener 8 dígitos'); return; }
   if(!S.ensayo){ mostrarErrDNI('No hay ensayo activo'); return; }
 
+  // Validar ventana horaria si está configurada
+  if(S.ensayo.ventana_inicio && S.ensayo.ventana_fin){
+    const ahora = new Date();
+    const hhmm = ahora.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',hour12:false});
+    if(hhmm < S.ensayo.ventana_inicio){
+      mostrarErrDNI(`El ensayo abre a las ${S.ensayo.ventana_inicio}. Aún no puedes marcar.`);
+      return;
+    }
+    if(hhmm > S.ensayo.ventana_fin){
+      mostrarErrDNI(`La ventana de marcación cerró a las ${S.ensayo.ventana_fin}.`);
+      return;
+    }
+  }
+
   setLoader(true);
   ocultarErrDNI();
 
@@ -1199,13 +1229,19 @@ function iniciarGPS(){
       verificarListoParaConfirmar();
     },
     err => {
-      const msgs = {1:'Permiso denegado',2:'Posición no disponible',3:'Tiempo agotado'};
-      setGPSStatus('err', msgs[err.code]||'Error GPS',
-        'Marca quedará pendiente de revisión JD');
+      const msgs = {1:'Permiso denegado — activa el GPS',2:'GPS no disponible',3:'GPS tardó mucho'};
+      // Solo marcar pendiente si el ensayo requiere verificación GPS
+      if(S.ensayo?.lat_referencia){
+        setGPSStatus('err', msgs[err.code]||'Error GPS',
+          'Marca quedará pendiente de revisión JD');
+        S.tipoAsistencia = 'pendiente_jd';
+        S.motivo_pendiente = 'GPS: '+msgs[err.code];
+      } else {
+        setGPSStatus('ok', 'Sin verificación de ubicación',
+          'Este ensayo no requiere validación GPS');
+      }
       S.gps = null;
       S.gpsOk = true;
-      S.tipoAsistencia = 'pendiente_jd';
-      S.motivo_pendiente = 'GPS no disponible';
       verificarListoParaConfirmar();
     },
     { enableHighAccuracy:true, timeout:12000, maximumAge:0 }
@@ -1523,8 +1559,18 @@ async function cargarListaAsistencia(){
     .order('hora_registro',{ascending:false});
 
   if(S_modoLista === 'activo'){
-    if(!S.ensayo){ el.innerHTML='<div class="empty"><p>Sin ensayo activo hoy</p></div>'; return; }
-    query = query.eq('ensayo_id', S.ensayo.id);
+    if(!S.ensayo){
+      // Buscar el ensayo más reciente aunque no sea de hoy
+      const { data: ultEnsayo } = await sb.from('ensayos')
+        .select('id').in('estado',['activo','cerrado'])
+        .order('fecha',{ascending:false}).limit(1);
+      if(!ultEnsayo || ultEnsayo.length === 0){
+        el.innerHTML='<div class="empty"><p>Sin ensayos registrados</p></div>'; return;
+      }
+      query = query.eq('ensayo_id', ultEnsayo[0].id);
+    } else {
+      query = query.eq('ensayo_id', S.ensayo.id);
+    }
   } else if(S_modoLista === 'pendientes'){
     query = query.eq('estado_registro','pendiente_jd');
   }
@@ -2331,16 +2377,15 @@ async function descargarAsistenciaSeleccionada(){
 //  GESTIÓN DE LUGARES DE ENSAYO
 // ═══════════════════════════════════════════════════════
 function toggleNuevoLugar(){
-  const form = document.getElementById('form-nuevo-lugar');
-  const visible = form.style.display === 'block';
-  form.style.display = visible ? 'none' : 'block';
-  if(!visible){
-    document.getElementById('lug-nombre').value = '';
-    document.getElementById('lug-dir').value = '';
-    document.getElementById('lug-lat').value = '';
-    document.getElementById('lug-lng').value = '';
-    document.getElementById('lug-radio').value = '150';
-  }
+  // Abrir como modal
+  document.getElementById('lug-nombre').value = '';
+  document.getElementById('lug-dir').value = '';
+  document.getElementById('lug-lat').value = '';
+  document.getElementById('lug-lng').value = '';
+  document.getElementById('lug-radio').value = '150';
+  document.getElementById('btn-gps-lugar').textContent = '📍 Usar mi ubicación actual';
+  document.getElementById('btn-gps-lugar').disabled = false;
+  document.getElementById('modal-nuevo-lugar').classList.add('open');
 }
 
 async function capturarGPSLugar(){
@@ -2385,7 +2430,7 @@ async function guardarLugar(){
   if(error){ showToast('Error: '+error.message,'err'); return; }
 
   showToast('✅ Lugar guardado','ok');
-  toggleNuevoLugar();
+  document.getElementById('modal-nuevo-lugar').classList.remove('open');
   cargarLugaresAdmin();
   cargarLugares(); // actualizar selector del formulario de ensayo
 }
@@ -2502,6 +2547,30 @@ async function abrirEditarEnsayo(id){
   document.getElementById('mee-lugar').value     = ensayo.lugar || '';
   document.getElementById('mee-esperados').value = ensayo.esperados || '';
   document.getElementById('mee-selfie').checked  = ensayo.requiere_selfie || false;
+  document.getElementById('mee-ventana-ini').value = ensayo.ventana_inicio || '';
+  document.getElementById('mee-ventana-fin').value  = ensayo.ventana_fin || '';
+
+  // Cargar lugares en el selector
+  await cargarLugares();
+  const lugarSel = document.getElementById('mee-lugar-sel');
+  if(lugarSel && S_lugares){
+    // Limpiar opciones previas
+    while(lugarSel.options.length > 2) lugarSel.remove(2);
+    S_lugares.forEach(l=>{
+      const opt = document.createElement('option');
+      opt.value = l.id; opt.textContent = l.nombre;
+      lugarSel.insertBefore(opt, lugarSel.options[1]);
+    });
+    // Pre-seleccionar si el lugar del ensayo coincide
+    const lugMatch = S_lugares.find(l=>l.nombre === ensayo.lugar);
+    lugarSel.value = lugMatch ? lugMatch.id : (ensayo.lugar ? 'custom' : '');
+    if(lugarSel.value === 'custom'){
+      const wrap = document.getElementById('mee-lugar-custom-wrap');
+      if(wrap) wrap.style.display = 'block';
+      const meeL = document.getElementById('mee-lugar');
+      if(meeL) meeL.value = ensayo.lugar || '';
+    }
+  }
 
   // Si está cerrado, deshabilitar edición
   const esCerrado = ensayo.estado === 'cerrado';
@@ -2535,6 +2604,11 @@ async function abrirEditarEnsayo(id){
   document.getElementById('modal-editar-ensayo').classList.add('open');
 }
 
+function seleccionarLugarEdit(val){
+  const wrap = document.getElementById('mee-lugar-custom-wrap');
+  if(wrap) wrap.style.display = (val==='custom') ? 'block' : 'none';
+}
+
 function cerrarModalEditarEnsayo(){
   document.getElementById('modal-editar-ensayo').classList.remove('open');
   S_ensayoEditando = null;
@@ -2547,14 +2621,32 @@ document.getElementById('modal-editar-ensayo').addEventListener('click',e=>{
 async function guardarEdicionEnsayo(){
   if(!S_ensayoEditando) return;
 
+  // Resolver lugar
+  const lugarSelEdit = document.getElementById('mee-lugar-sel')?.value || '';
+  let lugarNombreEdit = null;
+  let latEdit = null, lngEdit = null, radioEdit = null;
+  if(lugarSelEdit && lugarSelEdit !== 'custom' && lugarSelEdit !== ''){
+    const lugObj = S_lugares?.find(l=>l.id===lugarSelEdit);
+    if(lugObj){
+      lugarNombreEdit = lugObj.nombre;
+      latEdit = lugObj.lat; lngEdit = lugObj.lng; radioEdit = lugObj.radio_metros;
+    }
+  } else {
+    lugarNombreEdit = document.getElementById('mee-lugar')?.value.trim() || null;
+  }
+
   const datos = {
     nombre:           document.getElementById('mee-nombre').value.trim(),
     tipo:             document.getElementById('mee-tipo').value,
     fecha:            document.getElementById('mee-fecha').value,
     hora_inicio:      document.getElementById('mee-hora').value || null,
     minutos_tardanza: parseInt(document.getElementById('mee-tardanza').value) || 15,
-    lugar:            document.getElementById('mee-lugar').value.trim() || null,
-    esperados:        parseInt(document.getElementById('mee-esperados').value) || null,
+    ventana_inicio:   document.getElementById('mee-ventana-ini').value || null,
+    ventana_fin:      document.getElementById('mee-ventana-fin').value || null,
+    lugar:            lugarNombreEdit,
+    lat_referencia:   latEdit,
+    lng_referencia:   lngEdit,
+    radio_metros:     radioEdit || parseInt(document.getElementById('cfg-radio')?.value) || 150,
     requiere_selfie:  document.getElementById('mee-selfie').checked,
   };
 
