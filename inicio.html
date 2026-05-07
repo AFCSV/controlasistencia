@@ -792,6 +792,15 @@ const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsI
 const sb = supabase.createClient(SUPA_URL, SUPA_KEY);
 
 // ═══════════════════════════════════════════════════════
+//  HELPER: fecha de hoy en hora peruana (UTC-5)
+// ═══════════════════════════════════════════════════════
+function fechaHoyLima(){
+  // Obtiene YYYY-MM-DD en la zona horaria America/Lima
+  return new Date().toLocaleDateString('en-CA', {timeZone:'America/Lima'});
+  // 'en-CA' produce el formato YYYY-MM-DD que necesita Supabase
+}
+
+// ═══════════════════════════════════════════════════════
 //  ESTADO
 // ═══════════════════════════════════════════════════════
 const S = {
@@ -947,7 +956,7 @@ function setTab(tab, btn){
 //  CARGAR ENSAYO ACTIVO
 // ═══════════════════════════════════════════════════════
 async function cargarEnsayoActivo(){
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = fechaHoyLima();
   const horaActual = new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',hour12:false});
   // Buscar ensayo activo hoy O programado que deba activarse ahora
   let q = sb.from('ensayos').select('*')
@@ -1106,7 +1115,7 @@ function renderIntCard(p){
 // ═══════════════════════════════════════════════════════
 async function construirAlertas(p){
   const alertas = [];
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = fechaHoyLima();
 
   // 🎂 Cumpleaños
   if(esCumpleaños(p.fecha_nacimiento)){
@@ -1546,12 +1555,6 @@ let S_modoLista = 'activo'; // 'activo' | 'todos' | 'pendientes'
 
 function cambiarEnsayoLista(modo){
   S_modoLista = modo;
-  // Al cambiar el modo del select, resetear las pills al estado "Todos"
-  // para que no se pisen los filtros (ej. pill "Confirmados" + modo "pendientes" = vacío)
-  S.filtroLista = 'todos';
-  document.querySelectorAll('.pills .pill').forEach(p=>p.classList.remove('on'));
-  const pillTodos = document.querySelector('.pills .pill');
-  if(pillTodos) pillTodos.classList.add('on');
   cargarListaAsistencia();
 }
 
@@ -1767,7 +1770,7 @@ function seleccionarLugar(val){
 // ═══════════════════════════════════════════════════════
 async function cargarAdminPanel(){
   const el = document.getElementById('admin-ensayo-activo');
-  const hoy = new Date().toISOString().split('T')[0];
+  const hoy = fechaHoyLima();
   await cargarLugares(); // cargar selector de lugares
   const { data } = await sb.from('ensayos')
     .select('*').eq('fecha',hoy).eq('estado','activo')
@@ -2335,7 +2338,7 @@ async function descargarAsistenciaSeleccionada(){
   }).join('\n');
 
   // Generar Excel simple con XML
-  const fechaHoy = new Date().toISOString().split('T')[0];
+  const fechaHoy = fechaHoyLima();
   
   // Construir XML Excel
   const cols = ['Ensayo','Fecha','Tipo','Apellidos','Nombres','DNI','Figura','Estado Integr.','Estado Marca','Hora','GPS Lat','GPS Lng','Distancia(m)','Selfie URL','Observaciones'];
