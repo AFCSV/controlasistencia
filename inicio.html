@@ -421,6 +421,16 @@ body::before{content:'';position:fixed;inset:0;
       <div class="stat"><div class="stat-n" id="st-tard">0</div><div class="stat-l">Tardanza</div></div>
       <div class="stat"><div class="stat-n" id="st-pend">0</div><div class="stat-l">Pendiente</div></div>
     </div>
+    <!-- Selector de ensayo para lista -->
+    <div style="margin-bottom:10px">
+      <select id="sel-ensayo-lista" onchange="cambiarEnsayoLista(this.value)"
+        style="width:100%;padding:10px 13px;background:var(--g3);border:1px solid var(--bd);
+        border-radius:var(--rb);color:var(--w);outline:none;font-size:13px">
+        <option value="activo">Ensayo activo hoy</option>
+        <option value="todos">Todos los ensayos</option>
+        <option value="pendientes">⏳ Solo pendientes JD</option>
+      </select>
+    </div>
     <div class="pills">
       <button class="pill on" onclick="filtrarLista('todos',this)">Todos</button>
       <button class="pill" onclick="filtrarLista('confirmado',this)">✅ Confirmados</button>
@@ -545,7 +555,14 @@ body::before{content:'';position:fixed;inset:0;
             Capturar GPS automáticamente
           </label>
         </div>
-        <button class="btn btn-d" onclick="crearEnsayo()">⚡ Crear y activar ensayo</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-d" onclick="crearEnsayo('activo')" style="flex:2;margin-bottom:0">
+            ⚡ Crear y activar ahora
+          </button>
+          <button class="btn btn-g" onclick="crearEnsayo('programado')" style="flex:1;margin-bottom:0">
+            📅 Programar
+          </button>
+        </div>
       </div>
     </div>
 
@@ -593,10 +610,20 @@ body::before{content:'';position:fixed;inset:0;
     <div id="historial-ensayos-section" style="margin-top:4px;display:none">
       <div style="font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:2px;
         color:var(--d);margin:20px 0 12px;display:flex;align-items:center;gap:8px">
-        📋 ENSAYOS RECIENTES
+        📋 TODOS LOS ENSAYOS
         <div style="flex:1;height:1px;background:rgba(245,166,35,.13)"></div>
+        <select id="filtro-estado-ensayos" onchange="cargarHistorialEnsayos()"
+          style="background:var(--g4);border:1px solid var(--bd);color:var(--w);
+          border-radius:8px;padding:4px 8px;font-size:11px;outline:none">
+          <option value="">Todos</option>
+          <option value="programado">📅 Programados</option>
+          <option value="activo">✅ Activos</option>
+          <option value="cerrado">🔒 Cerrados</option>
+          <option value="cancelado">❌ Cancelados</option>
+          <option value="nulo">🚫 Nulos</option>
+        </select>
         <button class="btn btn-g btn-sm" onclick="cargarHistorialEnsayos()" style="margin-bottom:0;font-size:10px">
-          🔄 Actualizar
+          🔄
         </button>
       </div>
       <div id="lista-historial-ensayos">
@@ -905,7 +932,11 @@ function setTab(tab, btn){
 // ═══════════════════════════════════════════════════════
 async function cargarEnsayoActivo(){
   const hoy = new Date().toISOString().split('T')[0];
-  let q = sb.from('ensayos').select('*').eq('fecha', hoy).eq('estado','activo');
+  const horaActual = new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',hour12:false});
+  // Buscar ensayo activo hoy O programado que deba activarse ahora
+  let q = sb.from('ensayos').select('*')
+    .eq('fecha', hoy)
+    .in('estado',['activo','programado']);
 
   // Si tiene filial, filtrar por filial
   if(S.filialId) q = q.eq('filial_id', S.filialId);
@@ -1475,16 +1506,31 @@ async function cargarFiliales(){
 // ═══════════════════════════════════════════════════════
 //  LISTA DE ASISTENCIA (admin)
 // ═══════════════════════════════════════════════════════
+let S_modoLista = 'activo'; // 'activo' | 'todos' | 'pendientes'
+
+function cambiarEnsayoLista(modo){
+  S_modoLista = modo;
+  cargarListaAsistencia();
+}
+
 async function cargarListaAsistencia(){
   const el = document.getElementById('lista-asistencia');
   el.innerHTML = '<div class="loader"><div class="spin"></div> Cargando...</div>';
 
-  if(!S.ensayo){ el.innerHTML='<div class="empty"><p>Sin ensayo activo</p></div>'; return; }
-
-  const { data } = await sb.from('asistencia')
-    .select('*, personas(nombres,apellidos,figura,estado_membresia,filiales!personas_filial_id_fkey(nombre))')
-    .eq('ensayo_id', S.ensayo.id)
+  const filialId = S.filialId || 'bb000001-bb00-bb00-bb00-bb0000000001';
+  let query = sb.from('asistencia')
+    .select('*, personas(nombres,apellidos,figura,estado_membresia,filiales!personas_filial_id_fkey(nombre)), ensayos(nombre,fecha,estado)')
     .order('hora_registro',{ascending:false});
+
+  if(S_modoLista === 'activo'){
+    if(!S.ensayo){ el.innerHTML='<div class="empty"><p>Sin ensayo activo hoy</p></div>'; return; }
+    query = query.eq('ensayo_id', S.ensayo.id);
+  } else if(S_modoLista === 'pendientes'){
+    query = query.eq('estado_registro','pendiente_jd');
+  }
+  // 'todos' → sin filtro adicional, trae todo
+
+  const { data } = await query.limit(200);
 
   S.listaRegistros = data || [];
   renderLista();
@@ -1573,7 +1619,11 @@ function abrirMarca(id){
     ${r.lat?`<div class="irow"><span class="irow-label">GPS</span><span class="irow-val">${r.lat.toFixed(4)}, ${r.lng.toFixed(4)} ${r.distancia_metros?`(${r.distancia_metros}m)`:''}</span></div>`:''}
     ${r.motivo_pendiente?`<div class="irow"><span class="irow-label">Motivo</span><span class="irow-val" style="font-size:11px">${r.motivo_pendiente}</span></div>`:''}
     ${r.selfie_url?`<img src="${r.selfie_url}" style="width:100%;border-radius:var(--rb);margin-top:12px">`: ''}
-    ${r.regularizado_at?`<div class="alert alert-ok" style="margin-top:12px"><div class="alert-t">✅ Regularizado</div>${r.motivo_regularizacion||''}</div>`:''}`;
+    ${r.regularizado_at?`<div class="alert alert-ok" style="margin-top:12px">
+      <div class="alert-t">✅ Regularizado</div>
+      ${r.motivo_regularizacion||''}
+      ${r.regularizado_por?`<div style="font-size:10px;color:rgba(255,255,255,.5);margin-top:4px">Por: ${r.regularizado_por}</div>`:''}
+    </div>`:''}`;
 
   // Mostrar regularización si es admin y dentro de 48hrs
   const puedeReg = ROLES_ADMIN.includes(S.rol) && puedeRegularizar(r.hora_registro);
@@ -1707,7 +1757,7 @@ async function cargarAdminPanel(){
   }
 }
 
-async function crearEnsayo(){
+async function crearEnsayo(estadoInicial='activo'){
   let nombre   = document.getElementById('cfg-nombre').value.trim();
   const tipo     = document.getElementById('cfg-tipo').value;
   const fecha    = document.getElementById('cfg-fecha').value;
@@ -1765,7 +1815,7 @@ async function crearEnsayo(){
     lat_referencia:   latRef,
     lng_referencia:   lngRef,
     link_directo:     link,
-    estado:           'activo',
+    estado:           estadoInicial,
     creado_por:       S.userId||null,
   });
 
@@ -1804,6 +1854,15 @@ ${linkEnsayo}
   mostrarMensajeWsp(msgWsp);
 
   setTimeout(()=>cargarAdminPanel(), 500);
+}
+
+async function activarEnsayo(id){
+  if(!confirm('¿Activar este ensayo ahora? Se habilitará el QR y la marcación.')) return;
+  const { error } = await sb.from('ensayos').update({estado:'activo'}).eq('id',id);
+  if(error){ showToast('Error: '+error.message,'err'); return; }
+  showToast('✅ Ensayo activado','ok');
+  cargarAdminPanel();
+  cargarHistorialEnsayos();
 }
 
 async function cerrarEnsayo(){
@@ -2381,11 +2440,13 @@ async function cargarHistorialEnsayos(){
   el.innerHTML = '<div class="loader"><div class="spin"></div> Cargando...</div>';
 
   const filialId = S.filialId || 'bb000001-bb00-bb00-bb00-bb0000000001';
+  const filtroEstado = document.getElementById('filtro-estado-ensayos')?.value || '';
   let q = sb.from('ensayos')
-    .select('id,nombre,fecha,tipo,estado,hora_inicio,lugar,esperados,requiere_selfie')
-    .neq('estado','nulo') // excluir nulos del listado admin también
+    .select('id,nombre,fecha,tipo,estado,hora_inicio,lugar,esperados,requiere_selfie,ventana_inicio,ventana_fin')
     .order('fecha',{ascending:false})
-    .limit(20);
+    .order('hora_inicio',{ascending:true})
+    .limit(50);
+  if(filtroEstado) q = q.eq('estado', filtroEstado);
 
   if(!['super_admin','admin_nacional','JDN_miembro'].includes(S.rol)){
     q = q.eq('filial_id', filialId);
@@ -2399,16 +2460,22 @@ async function cargarHistorialEnsayos(){
     el.innerHTML='<div class="empty"><p>Sin ensayos registrados</p></div>'; return;
   }
 
-  const estadoColor = {activo:'b-ok',cerrado:'b-gray',cancelado:'b-err',nulo:'b-err'};
+  const estadoColor = {activo:'b-ok',cerrado:'b-gray',cancelado:'b-err',nulo:'b-err',programado:'b-lila'};
+  const estadoLabel = {activo:'Activo',cerrado:'Cerrado',cancelado:'Cancelado',nulo:'Nulo',programado:'📅 Programado'};
   el.innerHTML = data.map(e=>`
-    <div class="att-item" style="cursor:pointer" onclick="abrirEditarEnsayo('${e.id}')">
+    <div class="att-item" style="cursor:pointer;${e.estado==='programado'?'border-color:rgba(167,139,250,.3)':''}"
+      onclick="abrirEditarEnsayo('${e.id}')">
       <div style="flex:1;min-width:0">
         <div class="att-name">${e.nombre}</div>
-        <div class="att-meta">${formatFecha(e.fecha)} · ${e.tipo} · ${e.lugar||'—'}</div>
+        <div class="att-meta">
+          ${formatFecha(e.fecha)} · ${e.hora_inicio||'sin hora'} · ${e.lugar||'—'}
+        </div>
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-        <span class="b ${estadoColor[e.estado]||'b-gray'}">${e.estado}</span>
-        <span style="font-size:10px;color:var(--w3)">${e.esperados?e.esperados+' esp.':''}</span>
+        <span class="b ${estadoColor[e.estado]||'b-gray'}">${estadoLabel[e.estado]||e.estado}</span>
+        ${e.estado==='programado'?`<button onclick="event.stopPropagation();activarEnsayo('${e.id}')"
+          class="b b-ok" style="cursor:pointer;border:none;padding:3px 8px;font-size:10px">
+          ▶ Activar</button>`:''}
       </div>
     </div>`).join('');
 }
