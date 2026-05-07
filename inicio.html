@@ -1915,26 +1915,54 @@ function exportarLista(){
 //  HELPERS
 // ═══════════════════════════════════════════════════════
 function mostrarPaso(id){
-  document.querySelectorAll('#tab-marcar .step').forEach(s=>s.style.display='none');
+  ['paso-sin-ensayo','paso-dni','paso-confirmacion','paso-aspirante','paso-exito'].forEach(p=>{
+    const el = document.getElementById(p);
+    if(el) el.style.display='none';
+  });
   const el = document.getElementById(id);
   if(el) el.style.display='block';
 }
 
 function volverDNI(){
-  // Limpiar timer de auto-volver si existe
+  // Limpiar timers
   if(S._autoVolverTimer){ clearInterval(S._autoVolverTimer); S._autoVolverTimer=null; }
+  // Limpiar estado
   S.persona=null; S.gps=null; S.gpsOk=false;
   S.selfieBlob=null; S.selfieOk=false;
   S.tipoAsistencia=null; S.motivo_pendiente=null; S.tokenActual='';
+  S.dniPreCargado=null;
+  // Detener streams
   if(S.camStream){ S.camStream.getTracks().forEach(t=>t.stop()); S.camStream=null; }
-  document.getElementById('inp-dni').value='';
-  document.getElementById('alertas-container').innerHTML='';
-  document.getElementById('selfie-section').style.display='none';
-  document.getElementById('selfie-preview').style.display='none';
-  document.getElementById('cam-wrap').style.display='block';
-  document.getElementById('btn-capturar').style.display='flex';
-  document.getElementById('btn-repetir').style.display='none';
+  if(S.qrStream){ S.qrStream.getTracks().forEach(t=>t.stop()); S.qrStream=null; }
+  clearInterval(S.qrInterval);
+  // Reset UI
+  const dniEl = document.getElementById('inp-dni');
+  if(dniEl){ dniEl.value=''; dniEl.readOnly=false; dniEl.style.color=''; }
+  const alertas = document.getElementById('alertas-container');
+  if(alertas) alertas.innerHTML='';
+  const selfieSec = document.getElementById('selfie-section');
+  if(selfieSec) selfieSec.style.display='none';
+  const selfiePreview = document.getElementById('selfie-preview');
+  if(selfiePreview) selfiePreview.style.display='none';
+  const camWrap = document.getElementById('cam-wrap');
+  if(camWrap) camWrap.style.display='block';
+  const btnCap = document.getElementById('btn-capturar');
+  if(btnCap) btnCap.style.display='flex';
+  const btnRep = document.getElementById('btn-repetir');
+  if(btnRep) btnRep.style.display='none';
+  const btnConf = document.getElementById('btn-confirmar');
+  if(btnConf){ btnConf.disabled=true; btnConf.textContent='✅ Confirmar asistencia'; }
+  // Ocultar QR scan
+  const qrScan = document.getElementById('qr-scan-section');
+  if(qrScan) qrScan.style.display='none';
+  const btnQr = document.getElementById('btn-qr-scan');
+  if(btnQr) btnQr.style.display='flex';
   ocultarErrDNI();
+  // Si tiene DNI pre-cargado (modo gestión), volver a mostrarlo
+  if(S.modoGestion){
+    mostrarPaso('paso-sin-ensayo'); // en modo gestión no hay marcación
+    return;
+  }
   mostrarPaso('paso-dni');
 }
 
