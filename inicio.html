@@ -1301,8 +1301,14 @@ async function iniciarCamara(){
 function capturarSelfie(){
   const video = document.getElementById('cam-video');
   const canvas = document.getElementById('cam-canvas');
-  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video,0,0);
+
+  // Redimensionar a máximo 480px de ancho — suficiente para identificar, ~40KB por foto
+  const MAX_W = 480;
+  const ratio = video.videoHeight / video.videoWidth;
+  canvas.width  = MAX_W;
+  canvas.height = Math.round(MAX_W * ratio);
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+
   canvas.toBlob(blob => {
     S.selfieBlob = blob;
     const url = URL.createObjectURL(blob);
@@ -1340,7 +1346,9 @@ async function confirmarAsistencia(){
     // Subir selfie a Supabase Storage
     if(S.selfieBlob){
       try {
-        const fileName = `selfies/${S.ensayo.id}/${S.persona.id}_${Date.now()}.jpg`;
+        // Nombre de archivo = DNI del integrante — sobreescribe la foto anterior del mismo ensayo
+        const dni = S.persona?.dni || S.dniTemp || 'aspirante';
+        const fileName = `selfies/${S.ensayo.id}/${dni}.jpg`;
         const { data: upload, error: upErr } = await sb.storage
           .from('pagos-capturas')
           .upload(fileName, S.selfieBlob, { contentType:'image/jpeg', upsert:true });
