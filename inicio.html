@@ -1563,6 +1563,11 @@ let S_modoLista = 'activo'; // 'activo' | 'todos' | 'pendientes'
 
 function cambiarEnsayoLista(modo){
   S_modoLista = modo;
+  // Resetear pills al cambiar modo del select — evita filtros cruzados
+  S.filtroLista = 'todos';
+  document.querySelectorAll('.pills .pill').forEach(p => p.classList.remove('on'));
+  const pillTodos = document.querySelector('.pills .pill');
+  if(pillTodos) pillTodos.classList.add('on');
   cargarListaAsistencia();
 }
 
@@ -1577,10 +1582,14 @@ async function cargarListaAsistencia(){
 
   if(S_modoLista === 'activo'){
     if(!S.ensayo){
-      // Buscar el ensayo más reciente aunque no sea de hoy
-      const { data: ultEnsayo } = await sb.from('ensayos')
+      // Buscar el ensayo más reciente (activo o cerrado) de esta filial
+      let qEnsayo = sb.from('ensayos')
         .select('id').in('estado',['activo','cerrado'])
-        .order('fecha',{ascending:false}).limit(1);
+        .order('fecha',{ascending:false})
+        .order('created_at',{ascending:false})
+        .limit(1);
+      if(S.filialId) qEnsayo = qEnsayo.eq('filial_id', S.filialId);
+      const { data: ultEnsayo } = await qEnsayo;
       if(!ultEnsayo || ultEnsayo.length === 0){
         el.innerHTML='<div class="empty"><p>Sin ensayos registrados</p></div>'; return;
       }
