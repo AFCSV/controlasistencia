@@ -957,23 +957,27 @@ function setTab(tab, btn){
 // ═══════════════════════════════════════════════════════
 async function cargarEnsayoActivo(){
   const hoy = fechaHoyLima();
-  const horaActual = new Date().toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',hour12:false});
-  // Buscar ensayo activo hoy O programado que deba activarse ahora
-  let q = sb.from('ensayos').select('*')
-    .eq('fecha', hoy)
-    .in('estado',['activo','programado']);
 
-  // Si tiene filial, filtrar por filial
-  if(S.filialId) q = q.eq('filial_id', S.filialId);
+  // Primero intentar encontrar un ensayo 'activo' hoy (ya tiene marcaciones)
+  // Si no hay, tomar 'programado'. Nunca mezclar ambos en el limit(1) con created_at
+  // porque podría traer un ensayo vacío en lugar del que ya tiene marcaciones.
+  let ensayoHoy = null;
 
-  const { data } = await q.order('created_at',{ascending:false}).limit(1);
+  for(const estadoBuscar of [['activo'], ['programado']]){
+    let q = sb.from('ensayos').select('*')
+      .eq('fecha', hoy)
+      .in('estado', estadoBuscar);
+    if(S.filialId) q = q.eq('filial_id', S.filialId);
+    const { data } = await q.order('hora_inicio',{ascending:true}).limit(5);
+    if(data && data.length > 0){ ensayoHoy = data[0]; break; }
+  }
 
-  if(!data || data.length === 0){
+  if(!ensayoHoy){
     mostrarPaso('paso-sin-ensayo');
     return;
   }
 
-  S.ensayo = data[0];
+  S.ensayo = ensayoHoy;
   document.getElementById('header-ensayo-nombre').textContent = S.ensayo.nombre;
   document.getElementById('sub-ensayo-info').textContent =
     `${S.ensayo.nombre} · ${S.ensayo.hora_inicio || ''}`;
@@ -1582,18 +1586,22 @@ async function cargarListaAsistencia(){
 
   if(S_modoLista === 'activo'){
     if(!S.ensayo){
-      // Buscar el ensayo más reciente (activo o cerrado) de esta filial
-      let qEnsayo = sb.from('ensayos')
-        .select('id').in('estado',['activo','cerrado'])
-        .order('fecha',{ascending:false})
-        .order('created_at',{ascending:false})
-        .limit(1);
-      if(S.filialId) qEnsayo = qEnsayo.eq('filial_id', S.filialId);
-      const { data: ultEnsayo } = await qEnsayo;
-      if(!ultEnsayo || ultEnsayo.length === 0){
+      // Buscar el ensayo más reciente de esta filial — priorizar 'activo' sobre 'cerrado'
+      let ensayoId = null;
+      for(const estados of [['activo'],['cerrado']]) {
+        let qE = sb.from('ensayos').select('id')
+          .in('estado', estados)
+          .order('fecha',{ascending:false})
+          .order('hora_inicio',{ascending:false})
+          .limit(1);
+        if(S.filialId) qE = qE.eq('filial_id', S.filialId);
+        const { data: r } = await qE;
+        if(r && r.length > 0){ ensayoId = r[0].id; break; }
+      }
+      if(!ensayoId){
         el.innerHTML='<div class="empty"><p>Sin ensayos registrados</p></div>'; return;
       }
-      query = query.eq('ensayo_id', ultEnsayo[0].id);
+      query = query.eq('ensayo_id', ensayoId);
     } else {
       query = query.eq('ensayo_id', S.ensayo.id);
     }
